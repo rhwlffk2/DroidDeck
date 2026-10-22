@@ -1,4 +1,8 @@
+package com.droiddeck.launcher.session
 
+import com.droiddeck.launcher.core.GameEnvironment
+import com.droiddeck.launcher.frontend.AddedGames
+import com.droiddeck.launcher.frontend.Library
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
