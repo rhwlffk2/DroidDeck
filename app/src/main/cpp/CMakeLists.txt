@@ -8,9 +8,6 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,max-page-size=16384
 
 add_subdirectory(adrenotools)
 
-# DXVK's DXBC->SPIR-V translator is zlib licensed (vendored under thirdparty/dxbc).
-add_subdirectory(thirdparty/dxbc)
-
 set(DDFG_UPSTREAM "v0.3.0")
 set(DDFG_CHAIN_SRC
         framegen/ddfg/framegen.cpp

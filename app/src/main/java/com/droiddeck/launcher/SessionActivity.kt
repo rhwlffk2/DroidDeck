@@ -52,7 +52,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import com.droiddeck.launcher.gpu.ScreenEffectLooks
 import com.droiddeck.launcher.gpu.ScreenEffects
-import com.droiddeck.launcher.gpu.Lossless
 import com.droiddeck.launcher.gpu.TurnipDriver
 import com.droiddeck.launcher.input.EvdevKeys
 import com.droiddeck.launcher.input.InputSpace
@@ -316,10 +315,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
     private var textureLodBias by mutableStateOf(TextureFiltering.LOD_BIAS_OFF)
     private var drawerTextureAnisotropy by mutableStateOf<Int?>(null)
     private var drawerTextureLodBias by mutableStateOf<String?>(null)
-    private var lossless by mutableStateOf(Lossless.State.NONE)
-    private val pickLossless = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
-        if (r.resultCode == RESULT_OK) InAppFilePicker.pickedFile(r.data)?.let { importLossless(it) }
-    }
     private var frameGen by mutableStateOf(FrameGen.Mode.OFF)
     private var fexPreset by mutableStateOf("")
     private var suspendPolicy by mutableStateOf(SessionPrefs.SUSPEND_MANUAL)
@@ -590,7 +585,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
                 )
                 androidx.compose.runtime.LaunchedEffect(drawerOpen) {
                     if (drawerOpen) {
-                        syncLossless()
                         releasePads()
                         androidx.compose.runtime.withFrameNanos { }
                         val requested = sessionOverlay.requestFocus()
@@ -629,7 +623,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
                     textureAnisotropy = if (drawerGameProfileId == null) textureAnisotropy else drawerTextureAnisotropy,
                     textureLodBias = if (drawerGameProfileId == null) textureLodBias else drawerTextureLodBias,
                     frameGen = frameGen,
-                    lossless = lossless,
                     oscMode = oscMode, onScreenButtonsVisible = onScreenButtonsVisible, suspendPolicy = suspendPolicy,
                     steamDownloadsInBackground = steamDownloadsInBackground, touchMode = touchMode,
                     touchAuto = getString(if (usingTouchpad()) R.string.session_touch_auto_touchpad else R.string.session_touch_auto_direct),
@@ -678,10 +671,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
                         FrameGen.set(this@SessionActivity, mode)
                         readPrefs()
                         applyFrameGen()
-                    },
-                    onImportLossless = {
-                        pickLossless.launch(InAppFilePicker.buildIntent(
-                            this@SessionActivity, listOf("dll"), getString(R.string.lsfg_pick_title)))
                     },
                     onKeyboard = { drawerOpen = false; pcKeyboardOpen = false; keyboard?.toggle() },
                     onHardwareKeyboard = ::togglePcKeyboard,
@@ -1570,32 +1559,10 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
         val hz = refreshHz()
         Thread({
             val problem = FrameGen.apply(this, hz)
-            val state = Lossless.state(this)
             runOnUiThread {
-                lossless = state
                 if (problem != null) Toast.makeText(this, problem, Toast.LENGTH_LONG).show()
             }
         }, "frame-gen").start()
-    }
-
-    private fun syncLossless() {
-        Thread({
-            Lossless.sync(this)
-            val state = Lossless.state(this)
-            runOnUiThread { lossless = state }
-        }, "lossless-sync").start()
-    }
-
-    private fun importLossless(dll: File) {
-        Thread({
-            val message = Lossless.message(this, Lossless.import(this, dll))
-            val state = Lossless.state(this)
-            runOnUiThread {
-                lossless = state
-                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-                if (FrameGen.engine(this) == FrameGen.ENGINE_LSFG) applyFrameGen()
-            }
-        }, "lossless-import").start()
     }
 
 

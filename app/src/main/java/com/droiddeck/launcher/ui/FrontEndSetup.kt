@@ -477,7 +477,7 @@ private fun ReadinessCard(passing: Int, total: Int, line: String, open: Boolean,
 
 @Composable
 private fun FrameGenMenu(s: FrontEndState, a: FrontEndActions, host: MenuHost) {
-    FrameGenMenu(host, s.frameGen, s.lossless, a.onFrameGenPick, a.onImportLossless)
+    FrameGenMenu(host, s.frameGen, a.onFrameGenPick)
 }
 
 @Composable

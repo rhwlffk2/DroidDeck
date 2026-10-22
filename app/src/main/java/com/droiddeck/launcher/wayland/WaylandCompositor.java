@@ -282,13 +282,11 @@ public final class WaylandCompositor {
 
     public static native void nativeSendSceneInput(int type, int a, int b);
 
-    public static final int FG_ENGINE_LSFG = 0, FG_ENGINE_DDFG = 1;
+    public static final int FG_ENGINE_DDFG = 1;
 
     public static native void nativeSetFrameGenEngine(int kind);
 
     public static native void nativeSetFrameGenArmed(boolean armed, int multiplier, int targetFps);
-
-    public static native void nativeSetLsfgCachePath(String path);
 
     public static native void nativeSetFrameGenTuning(float flowScale, float refreshHz);
 

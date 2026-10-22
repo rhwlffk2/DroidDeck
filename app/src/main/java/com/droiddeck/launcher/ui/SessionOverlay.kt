@@ -135,7 +135,6 @@ import com.droiddeck.launcher.R
 import com.droiddeck.launcher.core.FexPreset
 import com.droiddeck.launcher.core.TextureFiltering
 import com.droiddeck.launcher.gpu.FrameGen
-import com.droiddeck.launcher.gpu.Lossless
 import com.droiddeck.launcher.gpu.ScreenEffectLooks
 import com.droiddeck.launcher.gpu.Cardboard
 import com.droiddeck.launcher.gpu.ScreenEffects
@@ -198,7 +197,6 @@ class DrawerActions(
     val hudColor: String = SessionPrefs.HUD_COLOR_MINT,
     val hudOpacity: Int = SessionPrefs.HUD_OPACITY_DEFAULT,
     val frameGen: FrameGen.Mode,
-    val lossless: Lossless.State,
     val oscMode: String,
     val onScreenButtonsVisible: Boolean,
     val suspendPolicy: String,
@@ -226,7 +224,6 @@ class DrawerActions(
     val onHudColor: (String) -> Unit = {},
     val onHudOpacity: (Int) -> Unit = {},
     val onFrameGenPick: (FrameGen.Mode) -> Unit,
-    val onImportLossless: () -> Unit,
     val onKeyboard: () -> Unit,
     val onHardwareKeyboard: () -> Unit,
     val onSteamMenu: (() -> Unit)?,
@@ -472,7 +469,7 @@ internal fun SessionDrawer(open: Boolean, requestedPage: SessionDrawerPage, cont
                                 SettingsRow(stringResource(R.string.frame_gen_title), null, highlighted = fgOpen) {
                                     Box {
                                         ValueChip(fgLabel, fgOpen, modifier = focus.track(page, "fg")) { host.open = if (fgOpen) null else "fg" }
-                                        FrameGenMenu(host, a.frameGen, a.lossless, a.onFrameGenPick, a.onImportLossless)
+                                        FrameGenMenu(host, a.frameGen, a.onFrameGenPick)
                                     }
                                 }
                             }

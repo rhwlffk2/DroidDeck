@@ -15,15 +15,6 @@ Java_com_droiddeck_launcher_wayland_WaylandCompositor_nativeSetFrameGenArmed(JNI
 }
 
 JNIEXPORT void JNICALL
-Java_com_droiddeck_launcher_wayland_WaylandCompositor_nativeSetLsfgCachePath(JNIEnv *env, jclass clazz, jstring path) {
-    (void)clazz;
-    if (!path) { vkp_framegen_set_lsfg_cache_path(NULL); return; }
-    const char *c = (*env)->GetStringUTFChars(env, path, NULL);
-    vkp_framegen_set_lsfg_cache_path(c);
-    if (c) (*env)->ReleaseStringUTFChars(env, path, c);
-}
-
-JNIEXPORT void JNICALL
 Java_com_droiddeck_launcher_wayland_WaylandCompositor_nativeSetFrameGenTuning(JNIEnv *env, jclass clazz,
                                                                          jfloat flowScale, jfloat refreshHz) {
     (void)env; (void)clazz;

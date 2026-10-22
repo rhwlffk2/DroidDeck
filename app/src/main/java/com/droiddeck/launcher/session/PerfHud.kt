@@ -13,7 +13,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.droiddeck.launcher.R
 import com.droiddeck.launcher.gpu.FrameGen
-import com.droiddeck.launcher.gpu.Lossless
 import com.droiddeck.launcher.wayland.WaylandCompositor
 import java.io.File
 import java.util.Locale
@@ -157,10 +156,8 @@ class PerfHud(context: Context) {
     private fun line(base: Float): String {
         val mode = FrameGen.mode(context)
         if (mode.engine == FrameGen.ENGINE_OFF) return fps(base)
-        val lsfg = mode.engine == FrameGen.ENGINE_LSFG
-        val name = if (lsfg) "LSFG" else "DD-FG"
+        val name = "DD-FG"
         val label = FrameGen.label(context, mode)
-        if (lsfg && Lossless.cacheFile(context)?.isFile != true) return context.getString(R.string.hud_fg_needs_lossless, name)
         val stats = try { WaylandCompositor.nativeFrameGenStats() } catch (t: Throwable) { null }
         val problem = try { WaylandCompositor.nativeFrameGenProblem() } catch (t: Throwable) { -1 }
         return when {

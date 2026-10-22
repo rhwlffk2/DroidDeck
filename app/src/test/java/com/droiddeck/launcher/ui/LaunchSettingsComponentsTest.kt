@@ -63,7 +63,7 @@ class LaunchSettingsComponentsTest {
                         onPlay = {}, onPlayDesktopUi = {}, onSteamGame = {}, onDesktop = {}, onEmulator = {},
                         onRom = {}, onResume = {}, onSteamSettings = {}, onDesktopSettings = {},
                         onInstallPackage = {}, onRemovePackage = {}, onRuntime = {}, onFrameGenPick = {},
-                        onImportLossless = {}, onProtons = {}, onComponents = { defaultOpens++ },
+                        onProtons = {}, onComponents = { defaultOpens++ },
                         onGameComponents = { openedGame = it }, onPerformance = {},
                         onRoms = {}, onFiles = {}, onLogs = {}, onOffline = {},
                     ),

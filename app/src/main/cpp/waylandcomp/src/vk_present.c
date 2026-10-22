@@ -488,7 +488,7 @@ static int dev_init(void) {
                               .enabledExtensionCount = n_dev_exts, .ppEnabledExtensionNames = dev_exts};
     VkResult dr = g_vk.CreateDevice(g_pd, &dci, NULL, &g_dev);
     if (dr != VK_SUCCESS && fg_features) {
-        droiddeck_log("framegen", "the driver refused the LSFG feature set (%s); device created without it",
+        droiddeck_log("framegen", "the driver refused the frame-generation feature set (%s); device created without it",
                    vk_result_name(dr));
         dci.pNext = NULL;
         fg_features = NULL;

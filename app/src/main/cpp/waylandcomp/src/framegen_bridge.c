@@ -15,7 +15,7 @@ uint64_t droiddeck_game_frames(void);
 #define FGLOG(...) droiddeck_log("framegen", __VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, "DroidDeckWayland", __VA_ARGS__)
 
-static _Atomic int   g_kind = VKP_FG_ENGINE_LSFG;
+static _Atomic int   g_kind = VKP_FG_ENGINE_DDFG;
 static _Atomic int   g_armed;
 static _Atomic int   g_mult = 2;
 static _Atomic int   g_target;
@@ -23,8 +23,6 @@ static _Atomic int   g_model = 3;
 static _Atomic int   g_preset = 2;
 static _Atomic int   g_cfg_dirty = 1;
 static float g_flow = 0.8f, g_refresh_hz;
-static char *g_cache_path;
-static _Atomic int   g_cache_gen;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static VkDevice g_dev;
@@ -50,10 +48,8 @@ static struct {
 
 
 static int g_engine_kind = -1;
-static int g_engine_cache_gen = -1;
 static int g_engine_ok;
 static _Atomic int g_failed_kind = -1;
-static _Atomic int g_failed_cache_gen = -1;
 
 struct ring_image { VkImage img; VkDeviceMemory mem; VkImageView view; int fresh; };
 static struct ring_image g_ring[VKP_FG_MAX_GENERATIONS];
@@ -86,7 +82,7 @@ static int64_t now_ns(void) {
 
 
 void vkp_framegen_set_engine(int kind) {
-    if (kind != VKP_FG_ENGINE_LSFG && kind != VKP_FG_ENGINE_DDFG) kind = VKP_FG_ENGINE_LSFG;
+    kind = VKP_FG_ENGINE_DDFG;
     atomic_store(&g_kind, kind);
     atomic_store(&g_failed_kind, -1);
     atomic_store(&g_cfg_dirty, 1);
@@ -101,18 +97,6 @@ void vkp_framegen_set_armed(int armed, int multiplier, int target_fps) {
     if (atomic_exchange(&g_target, target_fps) != target_fps) atomic_store(&g_cfg_dirty, 1);
     atomic_store(&g_armed, armed ? 1 : 0);
     LOGD("framegen: set_armed(%d, x%d, target %d fps)", armed, multiplier, target_fps);
-}
-
-void vkp_framegen_set_lsfg_cache_path(const char *path) {
-    pthread_mutex_lock(&g_lock);
-    int changed = (path == NULL) != (g_cache_path == NULL) ||
-                  (path && g_cache_path && strcmp(path, g_cache_path) != 0);
-    if (changed) {
-        free(g_cache_path);
-        g_cache_path = path ? strdup(path) : NULL;
-        atomic_fetch_add(&g_cache_gen, 1);
-    }
-    pthread_mutex_unlock(&g_lock);
 }
 
 void vkp_framegen_set_tuning(float flow_scale, float refresh_hz) {
@@ -132,18 +116,17 @@ void vkp_framegen_set_ddfg_tuning(int model, int perf_preset) {
 }
 
 static int start_failed_for(int kind) {
-    return atomic_load(&g_failed_kind) == kind && atomic_load(&g_failed_cache_gen) == atomic_load(&g_cache_gen);
+    return atomic_load(&g_failed_kind) == kind;
 }
 
 static void mark_failed(int kind) {
-    atomic_store(&g_failed_cache_gen, atomic_load(&g_cache_gen));
     atomic_store(&g_failed_kind, kind);
 }
 
 int vkp_framegen_problem(void) {
     if (!g_dev_ready) return -1;
     int kind = atomic_load(&g_kind);
-    if (!fge_caps_ok(kind)) return 1;
+    if (!fge_caps_ok()) return 1;
     if (start_failed_for(kind)) return 2;
     if (g_engine_ok && g_engine_kind == kind && fge_unavailable()) return 2;
     return 0;
@@ -151,8 +134,7 @@ int vkp_framegen_problem(void) {
 const char *vkp_framegen_caps_reason(void) { return fge_caps_reason(); }
 
 void vkp_framegen_stats(float out[6]) {
-    float accepted = 0.0f, src = 0.0f, thermal = -1.0f;
-    if (g_engine_ok) fge_telemetry(&accepted, &src, &thermal);
+    float thermal = -1.0f;
     out[0] = (float)g_planned;
     out[1] = (float)g_planned;
     out[2] = g_source_rate;
@@ -180,9 +162,8 @@ void vkp_framegen_device_ready(VkDevice dev, VkQueue queue, uint32_t qfam, int f
     g_vk.GetPhysicalDeviceMemoryProperties(g_pd, &g_memprops);
     fge_device_ready(g_gipa, g_inst, g_pd, dev, queue, qfam, features_enabled);
     g_dev_ready = vk.CreateImage && vk.CreateImageView && vk.CmdPipelineBarrier;
-    FGLOG("engines ready on the compositor's device: LSFG Native %s (%s), DD-FG Native %s",
-          fge_caps_ok(VKP_FG_ENGINE_LSFG) ? "available" : "unavailable", fge_caps_reason(),
-          fge_caps_ok(VKP_FG_ENGINE_DDFG) ? "available" : "unavailable");
+    FGLOG("engine ready on the compositor's device: DD-FG Native %s (%s)",
+          fge_caps_ok() ? "available" : "unavailable", fge_caps_reason());
 }
 
 void vkp_framegen_device_lost(void) { g_dev_lost = 1; }
@@ -198,7 +179,6 @@ static void destroy_ring(void) {
         memset(&g_ring[i], 0, sizeof(g_ring[i]));
     }
     g_ring_n = 0;
-    if (g_engine_ok) fge_forget_targets();
 }
 
 static int memory_type(uint32_t bits, VkMemoryPropertyFlags want) {
@@ -244,7 +224,7 @@ static int ensure_ring(uint32_t w, uint32_t h, VkFormat fmt, uint32_t n) {
 
 static int engine_usable(void) {
     int kind = atomic_load(&g_kind);
-    return g_dev_ready && !g_dev_lost && fge_caps_ok(kind) && !start_failed_for(kind);
+    return g_dev_ready && !g_dev_lost && fge_caps_ok() && !start_failed_for(kind);
 }
 
 int vkp_framegen_format_ok(VkFormat fmt) {
@@ -256,7 +236,7 @@ int vkp_framegen_format_ok(VkFormat fmt) {
 static void refuse_format(VkFormat fmt, int kind, int w, int h, const char *what) {
     if (g_refused_n < (int)(sizeof(g_refused_fmt) / sizeof(g_refused_fmt[0]))) g_refused_fmt[g_refused_n++] = fmt;
     FGLOG("%s could not %s in format %d (the HDR picture's FP16) at %dx%d: it restarts, and HDR frames go through "
-          "it in 8 bits from the next frame", fge_engine_name(kind), what, (int)fmt, w, h);
+          "it in 8 bits from the next frame", fge_engine_name(), what, (int)fmt, w, h);
     destroy_ring();
     fge_stop();
     g_engine_ok = 0; g_engine_kind = -1;
@@ -273,32 +253,18 @@ int vkp_framegen_extra_images(void) {
 }
 
 static int ensure_engine(int kind) {
-    const int cache_gen = atomic_load(&g_cache_gen);
-    if (g_engine_ok && g_engine_kind == kind && (kind != VKP_FG_ENGINE_LSFG || g_engine_cache_gen == cache_gen))
-        return 1;
+    if (g_engine_ok && g_engine_kind == kind) return 1;
     if (start_failed_for(kind)) return 0;
     if (g_engine_ok) { destroy_ring(); fge_stop(); g_engine_ok = 0; g_engine_kind = -1; }
-    char *path = NULL;
-    pthread_mutex_lock(&g_lock);
-    if (g_cache_path) path = strdup(g_cache_path);
-    pthread_mutex_unlock(&g_lock);
-    if (kind == VKP_FG_ENGINE_LSFG && !path) {
-        FGLOG("LSFG Native can't start: no shader cache from Lossless.dll");
+    if (fge_start() != 0) {
+        FGLOG("%s failed to start on the compositor's driver; frame generation stays off", fge_engine_name());
         mark_failed(kind);
         return 0;
     }
-    int r = fge_start(kind, path);
-    free(path);
-    if (r != 0) {
-        FGLOG("%s failed to start on the compositor's driver; frame generation stays off",
-              fge_engine_name(kind));
-        mark_failed(kind);
-        return 0;
-    }
-    g_engine_ok = 1; g_engine_kind = kind; g_engine_cache_gen = cache_gen;
+    g_engine_ok = 1; g_engine_kind = kind;
     atomic_store(&g_cfg_dirty, 1);
     g_built_w = g_built_h = 0;
-    FGLOG("%s engine ready (%s)", fge_engine_name(kind), fge_build_info());
+    FGLOG("%s engine ready (%s)", fge_engine_name(), fge_build_info());
     return 1;
 }
 
@@ -315,7 +281,7 @@ static void log_arm_transition(int armed, int kind, int mult) {
     if (armed == g_was_armed) {
         if (armed && (mult != g_logged_mult || target != g_logged_target)) {
             g_logged_mult = mult; g_logged_target = target;
-            FGLOG("%s now %s", fge_engine_name(kind), describe_mode(mode, sizeof(mode), mult, target));
+            FGLOG("%s now %s", fge_engine_name(), describe_mode(mode, sizeof(mode), mult, target));
         }
         return;
     }
@@ -325,7 +291,7 @@ static void log_arm_transition(int armed, int kind, int mult) {
         float flow, hz;
         pthread_mutex_lock(&g_lock); flow = g_flow; hz = g_refresh_hz; pthread_mutex_unlock(&g_lock);
         FGLOG("%s %s armed (flow scale %.2f, panel %.0f Hz): real frames are presented one slot late "
-              "with the interpolated frames ahead of them", fge_engine_name(kind),
+              "with the interpolated frames ahead of them", fge_engine_name(),
               describe_mode(mode, sizeof(mode), mult, target), (double)flow, (double)hz);
     } else {
         FGLOG("frame generation off (%llu frames generated this session)", (unsigned long long)g_total_generated);
@@ -347,8 +313,8 @@ int vkp_framegen_run(VkCommandBuffer cmd, VkImage scene, VkImageView scene_view,
     if (atomic_exchange(&g_cfg_dirty, 0)) {
         float flow, hz;
         pthread_mutex_lock(&g_lock); flow = g_flow; hz = g_refresh_hz; pthread_mutex_unlock(&g_lock);
-        fge_configure((uint32_t)mult, (uint32_t)atomic_load(&g_target), flow, hz,
-                      atomic_load(&g_model), atomic_load(&g_preset));
+        (void)hz;
+        fge_configure((uint32_t)mult, flow, atomic_load(&g_model), atomic_load(&g_preset));
     }
     if (!fge_prepare((uint32_t)w, (uint32_t)h, fmt)) {
         if (fmt != VK_FORMAT_R8G8B8A8_UNORM && fge_unavailable()) {
@@ -356,7 +322,7 @@ int vkp_framegen_run(VkCommandBuffer cmd, VkImage scene, VkImageView scene_view,
             return 0;
         }
         if (fge_unavailable()) {
-            FGLOG("%s could not build its chain at %dx%d; frame generation stays off", fge_engine_name(kind), w, h);
+            FGLOG("%s could not build its chain at %dx%d; frame generation stays off", fge_engine_name(), w, h);
             mark_failed(kind);
         }
         return 0;
@@ -377,7 +343,8 @@ int vkp_framegen_run(VkCommandBuffer cmd, VkImage scene, VkImageView scene_view,
      * generations would otherwise read as a slower game and justify even more generations. */
     ++g_source_frames;
     const uint64_t game_frames = droiddeck_game_frames();
-    uint32_t n_gen = fge_plan(g_ring_n, game_frames ? game_frames : g_source_frames, g_presented_rate);
+    (void)game_frames;
+    uint32_t n_gen = fge_plan(g_ring_n);
     if (n_gen > g_ring_n) n_gen = g_ring_n;
     g_planned = n_gen;
 
@@ -425,7 +392,7 @@ int vkp_framegen_run(VkCommandBuffer cmd, VkImage scene, VkImageView scene_view,
         if (!g_generating_logged) {
             g_generating_logged = 1;
             char mode[96];
-            FGLOG("generating: %s %s at %dx%d%s", fge_engine_name(kind),
+            FGLOG("generating: %s %s at %dx%d%s", fge_engine_name(),
                   describe_mode(mode, sizeof(mode), mult, atomic_load(&g_target)), w, h,
                   fmt == VK_FORMAT_R16G16B16A16_SFLOAT ? ", FP16: the HDR picture" : "");
         }

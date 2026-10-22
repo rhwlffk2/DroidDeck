@@ -126,11 +126,10 @@ struct VkTable {
 
 #include "../scanout/ScanoutContext.h"
 
-#include "lsfg/lsfg_probe.h"
+#include "fg_probe.h"
 #include <memory>
 #include <string>
 
-namespace lsfg { class Engine; }
 namespace ddfg { class Engine; }
 
 static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
@@ -207,7 +206,7 @@ struct DebandPushConstants {
 class VulkanRendererContext {
 public:
     VulkanRendererContext(ANativeWindow* window, int cWidth, int cHeight, void* adrenotoolsHandle = nullptr,
-                          bool lsfgVk11Compat = false);
+                          bool fgVk11Compat = false);
     ~VulkanRendererContext();
 
     void onSurfaceResized(int width, int height);
@@ -270,13 +269,12 @@ public:
     void setPresentMode(VkPresentModeKHR mode);
     std::vector<int> getSupportedPresentModes() const;
 
-    const lsfg::Caps& lsfgCaps() const { return lsfgCaps_; }
+    const fgcaps::Caps& fgCaps() const { return fgCaps_; }
 
     void setFrameGenArmed(bool armed, int multiplier);
     bool frameGenArmed() const { return fgArmed_.load(std::memory_order_relaxed); }
     void frameGenStats(float out[6]) const;
     int frameGenProblem() const;
-    void setLsfgCachePath(const char* path);
     static constexpr int32_t kFgCaptureGame = -1;
     void setFrameGenTuning(float flowScale, float refreshHz, int32_t captureHeight = 0);
     void setFrameGenEngine(int kind);
@@ -314,7 +312,7 @@ private:
     int surfaceWidth, surfaceHeight, containerWidth, containerHeight;
     std::atomic<int> clipRegionX{0}, clipRegionY{0}, clipRegionW{0}, clipRegionH{0};
     void* adrenotoolsHandle = nullptr;
-    bool  lsfgVk11Compat_   = false;
+    bool  fgVk11Compat_     = false;
     int filterMode = 0;
     bool swapRB = false;
     float maxAnisotropy           = 1.0f;
@@ -464,10 +462,7 @@ private:
         uint32_t imgIdx[kMaxPresentsPerFrame] = {};
     };
     FrameGenPlan fgPlan_{};
-    std::unique_ptr<lsfg::Engine> lsfgEngine_;
     uint64_t    fgSourceFrames_ = 0;
-    std::string lsfgCachePath_;
-    bool        lsfgEngineTried_ = false;
     std::unique_ptr<ddfg::Engine> ddfgEngine_;
     bool        ddfgEngineTried_ = false;
     std::atomic<int> fgEngineKind_{0};
@@ -488,7 +483,6 @@ private:
     bool     fgRateWindowOpen_  = false;
     void     trackPresentedRate(uint32_t presents);
 
-    bool ensureLsfgEngine();
     uint32_t cmdSlot(uint32_t k) const { return currentFrame * kMaxPresentsPerFrame + k; }
     void recordFrameGenProcess(VkCommandBuffer cb);
     void recordFrameGenGeneration(VkCommandBuffer cb, uint32_t g);
@@ -610,7 +604,7 @@ private:
     void createInstance();
     void createSurface();
     void pickPhysicalDevice();
-    lsfg::Caps lsfgCaps_{};
+    fgcaps::Caps fgCaps_{};
 
     void createLogicalDevice();
     void createSwapchain();

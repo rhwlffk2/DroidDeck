@@ -935,12 +935,6 @@ BUSCONF
       tick=0
       beat=0
       library_job=
-      lossless_job=
-      lossless_left=0
-      lossless_owned=$HOME/.config/droiddeck/lossless-owned
-      lossless_asked=$HOME/.bl-lossless-asked
-      rm -f "$lossless_asked"
-      [ "${BL_LOSSLESS_OWNED:-0}" != 1 ] && lossless_left=60
       declare -A _bl_pinned=()
       declare -A _bl_ran=()
       _bl_exited=
@@ -1090,24 +1084,6 @@ BUSCONF
             fi
             : > "$HOME/.bl-restart-once"
             "${steam_client[@]}" -shutdown >/dev/null 2>&1 || true
-          fi
-        fi
-        if [ "$lossless_left" -gt 0 ] && [ "$((beat % 6))" -eq 0 ] && { [ -z "$lossless_job" ] || ! kill -0 "$lossless_job" 2>/dev/null; }; then
-          lossless_left=$((lossless_left - 1))
-          if [ -e "$lossless_owned" ] || [ -e "$lossless_asked" ]; then
-            lossless_left=0
-          elif ! pgrep -x wineserver >/dev/null 2>&1; then
-            (
-              # The probe reaches the x86-64 client through the arm64 client's steamclient.so, as the import watcher does.
-              if [ "$steam_x64" = 1 ]; then export BL_STEAMCLIENT=$XDG_DATA_HOME/Steam/steamrtarm64/steamclient.so; fi
-              answer=$(droiddeck-steam-games probe "$steam_root" 993090 2>/dev/null) || exit 0
-              case $answer in
-                *'"993090": true'*) mkdir -p "${lossless_owned%/*}" && : > "$lossless_owned" && echo "== Lossless Scaling: owned" ;;
-                *) echo "== Lossless Scaling: not owned by this account" ;;
-              esac
-              : > "$lossless_asked"
-            ) &
-            lossless_job=$!
           fi
         fi
       done

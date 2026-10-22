@@ -4,11 +4,15 @@
 #include <cstdint>
 #include <vector>
 
-#include "lsfg_dll.h"
 
 struct VkTable;
 
-namespace lsfg {
+// SPIR-V versions the device can load; kept from the frame-generation probe.
+constexpr uint32_t kSpirv14 = 0x00010400u;
+constexpr uint32_t kSpirv15 = 0x00010500u;
+constexpr uint32_t kSpirv16 = 0x00010600u;
+
+namespace fgcaps {
 
 struct FeatureSupport {
     bool queried                     = false;

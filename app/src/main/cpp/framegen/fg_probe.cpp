@@ -1,11 +1,11 @@
 
-#include "lsfg_probe.h"
-#include "../VulkanRendererContext.h"
+#include "fg_probe.h"
+#include "VulkanRendererContext.h"
 
 #include <cstdio>
 #include <cstring>
 
-namespace lsfg {
+namespace fgcaps {
 
 namespace {
 

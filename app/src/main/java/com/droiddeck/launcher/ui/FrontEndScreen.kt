@@ -75,7 +75,6 @@ import androidx.compose.ui.layout.positionInRoot
 import com.droiddeck.launcher.HomeApp
 import com.droiddeck.launcher.frontend.Library
 import com.droiddeck.launcher.gpu.FrameGen
-import com.droiddeck.launcher.gpu.Lossless
 import com.droiddeck.launcher.input.SecondScreenDisplay
 import com.droiddeck.launcher.core.DownloadSource
 import com.droiddeck.launcher.core.PhantomProcessLimit
@@ -105,7 +104,6 @@ class FrontEndState(
     val emulators: List<Library.Emulator>,
     val running: String?,
     val frameGen: FrameGen.Mode = FrameGen.Mode.OFF,
-    val lossless: Lossless.State = Lossless.State.NONE,
     val shortcutPicker: Boolean = false,
     val shortcutLibraryScanning: Boolean = false,
     val gameSyncFolder: String? = null,
@@ -175,7 +173,6 @@ class FrontEndActions(
     val onRemovePackage: (String) -> Unit,
     val onRuntime: () -> Unit,
     val onFrameGenPick: (FrameGen.Mode) -> Unit,
-    val onImportLossless: () -> Unit,
     val onProtons: () -> Unit,
     val onComponents: (focusContent: Boolean) -> Unit,
     val onGameComponents: (Library.SteamGame) -> Unit = { onComponents(true) },

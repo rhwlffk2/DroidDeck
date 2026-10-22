@@ -30,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toArgb
 import com.droiddeck.launcher.gpu.FrameGen
 import com.droiddeck.launcher.gpu.TurnipDriver
-import com.droiddeck.launcher.gpu.Lossless
 import com.droiddeck.launcher.runtime.LinuxRuntime
 import com.droiddeck.launcher.runtime.DesktopCatalog
 import com.droiddeck.launcher.runtime.LinuxRuntimeInstaller
@@ -103,7 +102,6 @@ class MainActivity : ComponentActivity() {
     private var percent by mutableIntStateOf(-1)
     private var failed by mutableStateOf(false)
     private var frameGenLabel by mutableStateOf("")
-    private var lossless by mutableStateOf(Lossless.State.NONE)
     private var showRemove by mutableStateOf(false)
     private var showRuntimeActions by mutableStateOf<LinuxRuntimeInstaller.Release?>(null)
     private var pendingSwitch by mutableStateOf<Intent?>(null)
@@ -193,9 +191,6 @@ class MainActivity : ComponentActivity() {
     private val pickAnyDriver = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
         if (r.resultCode == RESULT_OK) InAppFilePicker.pickedUri(r.data)?.let { drivers.importDriver(it, linux = null) }
     }
-    private val pickLossless = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
-        if (r.resultCode == RESULT_OK) InAppFilePicker.pickedFile(r.data)?.let { importLossless(it) }
-    }
     private val pickSaveZip = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
         val then = onSavePicked.also { onSavePicked = null } ?: return@registerForActivityResult
         if (r.resultCode == RESULT_OK) InAppFilePicker.pickedFile(r.data)?.let(then)
@@ -203,14 +198,6 @@ class MainActivity : ComponentActivity() {
     private val pickSaveDir = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
         val then = onSavePicked.also { onSavePicked = null } ?: return@registerForActivityResult
         if (r.resultCode == RESULT_OK) InAppFilePicker.pickedFile(r.data)?.let(then)
-    }
-
-    private fun syncLossless() {
-        Thread({
-            Lossless.sync(this)
-            val state = Lossless.state(this)
-            ui.post { lossless = state }
-        }, "lossless-sync").start()
     }
 
     private fun importBootMovie(file: File) {
@@ -243,17 +230,6 @@ class MainActivity : ComponentActivity() {
         bootMovie = com.droiddeck.launcher.session.BootMovie.choice(this)
         bootMovieSound = SessionPrefs.bootMovieSound(this)
         bootMovieCustomName = com.droiddeck.launcher.session.BootMovie.customName(this)
-    }
-
-    private fun importLossless(dll: File) {
-        Thread({
-            val message = Lossless.message(this, Lossless.import(this, dll))
-            val state = Lossless.state(this)
-            ui.post {
-                lossless = state
-                android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
-            }
-        }, "lossless-import").start()
     }
 
     private fun importSaves(name: String, game: () -> GameSaves.Game) {
@@ -636,7 +612,6 @@ class MainActivity : ComponentActivity() {
                         vacDiagnostics = vacDiagnostics, agentCommands = agentCommands,
                         steamGames = steamGames, steamGamesX64 = steamGamesX64, emulators = emulatorList, running = runningLabel,
                         frameGen = FrameGen.mode(this),
-                        lossless = lossless,
                         pageKey = if (showPerformance) "performance" else if (showComponents) "components" else if (showMapping) "controller-mapping" else null,
                         theme = theme,
                         language = com.droiddeck.launcher.core.AppLanguage.chosen(this),
@@ -754,9 +729,6 @@ class MainActivity : ComponentActivity() {
                         onFrameGenPick = { mode ->
                             FrameGen.set(this, mode)
                             frameGenLabel = FrameGen.label(this)
-                        },
-                        onImportLossless = {
-                            pickLossless.launch(InAppFilePicker.buildIntent(this, listOf("dll"), getString(R.string.lsfg_pick_title)))
                         },
                         onProtons = { openProtons() },
                         onComponents = { focusContent -> openComponents(focusContent) },
@@ -1059,7 +1031,6 @@ class MainActivity : ComponentActivity() {
             returning = ReturningFlood(c, com.droiddeck.launcher.ui.LaunchOrigin.takeReturn())
         }
         refreshPhantomStatus()
-        syncLossless()
         drivers.checkOnOpen()
         resumeInterruptedPackages()
         protons.checkUpdates()

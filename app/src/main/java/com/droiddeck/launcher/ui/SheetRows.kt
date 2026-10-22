@@ -13,7 +13,7 @@ internal fun FrameGenGroup(s: FrontEndState, a: FrontEndActions) {
         SettingsRow(stringResource(R.string.frame_gen_title), stringResource(R.string.frame_gen_hint), highlighted = host.open == "fg") {
             Box {
                 ValueChip(s.frameGenLabel, host.open == "fg") { host.open = if (host.open == "fg") null else "fg" }
-                FrameGenMenu(host, s.frameGen, s.lossless, a.onFrameGenPick, a.onImportLossless)
+                FrameGenMenu(host, s.frameGen, a.onFrameGenPick)
             }
         }
     }

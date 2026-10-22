@@ -56,7 +56,7 @@ class GamesClientTagTest {
                             onPlay = {}, onPlayDesktopUi = {}, onSteamGame = {}, onDesktop = {}, onEmulator = {},
                             onRom = {}, onResume = {}, onSteamSettings = {}, onDesktopSettings = {},
                             onInstallPackage = {}, onRemovePackage = {}, onRuntime = {}, onFrameGenPick = {},
-                            onImportLossless = {}, onProtons = {}, onComponents = {}, onPerformance = {},
+                            onProtons = {}, onComponents = {}, onPerformance = {},
                             onRoms = {}, onFiles = {}, onLogs = {}, onOffline = {},
                         ), selected = "app:440", onSelect = {}, modifier = Modifier.fillMaxSize())
                     }
