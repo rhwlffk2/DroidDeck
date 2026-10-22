@@ -155,7 +155,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
     private lateinit var hud: PerfHud
     private var padBridge: PadBridge? = null
     private var joyConVr: com.droiddeck.launcher.input.JoyConVr? = null
-    private var handCamera: com.droiddeck.launcher.handtracking.HandCamera? = null
     private var padMotion: com.droiddeck.launcher.input.PadMotion? = null
     private var resumed = false
     private val deckPadListener: () -> Unit = { uiHandler.post { updatePadMotion(); openDeckRing("deck pad changed"); applyUnfoldedControls() } }
@@ -392,7 +391,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
             padBridge?.syncConnectedControllers()
             refreshControls()
             updatePointerCapture()
-            updateHandCamera()
         }
         override fun onInputDeviceRemoved(deviceId: Int) {
             Log.i(TAG, "input device $deviceId disconnected")
@@ -401,7 +399,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
             if (::padMouse.isInitialized) padMouse.reset()
             refreshControls()
             updatePointerCapture()
-            updateHandCamera()
         }
         override fun onInputDeviceChanged(deviceId: Int) {
             joyConVr?.refresh()
@@ -478,7 +475,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
                 if (joyConVr == null) return@JoyConVr
                 taken.forEach(bridge::onDeviceRemoved)
                 if (released.isNotEmpty()) bridge.syncConnectedControllers()
-                updateHandCamera()
             }
             bridge.setExcluded(vr::owns)
             joyConVr = vr
@@ -558,15 +554,12 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
             glasses = it
             onGlassesChanged()
             updateJoyConTracking()
-            updateHandCamera()
         } }
         glassesScope.launch { Glasses.settings.collect {
             glassesSettings = it
             onGlassesChanged()
             updateJoyConTracking()
-            updateHandCamera()
         } }
-        glassesScope.launch { com.droiddeck.launcher.handtracking.HandTracking.settings.collect { updateHandCamera() } }
         glassesScope.launch {
             while (true) {
                 updateTrackingRecovery()
@@ -2885,13 +2878,11 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
         SessionService.setActivityVisible(this, true, shownOnDisplayId)
         Glasses.rescan()
         updateGlassesScreen()
-        updateHandCamera()
     }
 
     override fun onStop() {
         if (runtimeRemovalBlocked) { super.onStop(); return }
         started = false
-        updateHandCamera()
         displayManager.unregisterDisplayListener(displayListener)
         closeSecondScreen(reset = false)
         startedScreens = (startedScreens - 1).coerceAtLeast(0)
@@ -3053,37 +3044,11 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
                 (usesSpatialControllers() && glassesSettings.joyConTracking)))
     }
 
-    private fun updateHandCamera() {
-        val joyCons = joyConVr?.holding == true
-        val bare = !joyCons && !controllerConnected()
-        val want = started && steamVrStatus == SteamVr.Status.RUNNING && (joyCons || bare) &&
-            !usesSpatialControllers() &&
-            com.droiddeck.launcher.handtracking.HandTracking.wanted(this)
-        handCamera?.bareHands = bare
-        if (want == (handCamera != null)) return
-        if (want) {
-            handCamera = com.droiddeck.launcher.handtracking.HandCamera(this,
-                File(filesDir, ".wayland-rt/${com.droiddeck.launcher.handtracking.HandCameraShm.FILE}"), preview = false)
-                .also {
-                    it.bareHands = bare
-                    it.start(com.droiddeck.launcher.handtracking.HandTracking.settings.value.side)
-                }
-        } else {
-            handCamera?.stop()
-            handCamera = null
-        }
-    }
-
-    private fun controllerConnected(): Boolean = InputDevice.getDeviceIds().any { id ->
-        joyConVr?.owns(id) != true && com.droiddeck.launcher.input.PadBridge.isFromController(InputDevice.getDevice(id))
-    }
-
     private fun onSteamVrStatus(now: SteamVr.Status) {
         if (ended || isDestroyed) return
         val was = steamVrStatus
         steamVrStatus = now
         updateJoyConTracking()
-        updateHandCamera()
         autoStartSteamVr(now)
         if ((was == SteamVr.Status.RUNNING) != (now == SteamVr.Status.RUNNING)) applyCardboard(cardboard)
         if (now != SteamVr.Status.UNAVAILABLE) Glasses.setVrActive(now == SteamVr.Status.RUNNING)
@@ -3384,8 +3349,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
         if (::hud.isInitialized) hud.stop()
         joyConVr?.close()
         joyConVr = null
-        handCamera?.stop()
-        handCamera = null
         padBridge?.stop()
         if (SessionState.padBridge === padBridge) SessionState.padBridge = null
         padMotion?.stop()

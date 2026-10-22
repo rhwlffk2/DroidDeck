@@ -52,7 +52,6 @@ import android.content.Intent
 import androidx.compose.ui.platform.LocalContext
 import com.droiddeck.launcher.glasses.SpatialTracking
 import com.droiddeck.launcher.glasses.SpatialMeasurements
-import com.droiddeck.launcher.handtracking.HandTracking
 import java.util.Locale
 
 internal val GlassesIcon: ImageVector by lazy {
@@ -253,9 +252,6 @@ internal fun GlassesGroups(
         if (g.hasSunblock) ToggleRow(host, "glasses-sunblock", stringResource(R.string.glasses_sunblock), stringResource(R.string.glasses_sunblock_hint),
             g.sunblock, chipModifier = track("glasses-sunblock")) { Glasses.setSunblock(it) }
     }
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val hands by HandTracking.settings.collectAsState()
-    androidx.compose.runtime.LaunchedEffect(Unit) { HandTracking.load(context) }
     if ((tab == null || tab == GlassesTab.TRACKING) && g.canControl) {
         if (g.spatialConnected) {
             SettingsGroup(stringResource(R.string.glasses_experimental)) {
@@ -268,8 +264,6 @@ internal fun GlassesGroups(
                         format = SpatialMeasurements::height, modifier = track("glasses-eye-height")) { Glasses.setEyeHeight(it) }
                     ActionRow(stringResource(R.string.glasses_floor), null, stringResource(R.string.glasses_floor_set), Glasses::setSpatialFloor)
                     HandCalibrationStatus(spatial)
-                    ActionRow(stringResource(R.string.glasses_spatial_setup), stringResource(R.string.glasses_spatial_setup_hint),
-                        stringResource(R.string.glasses_spatial_open), { context.startActivity(Intent(context, SpatialTrackingActivity::class.java)) })
                     ToggleRow(host, "glasses-hands", stringResource(R.string.glasses_hands), stringResource(R.string.glasses_hands_hint),
                         s.handControllers, chipModifier = track("glasses-hands")) { Glasses.setHandControllers(it) }
                     if (s.handControllers) ToggleRow(host, "glasses-steady-hand-aim",
@@ -280,9 +274,6 @@ internal fun GlassesGroups(
                     stringResource(if (s.positionalTracking) R.string.glasses_joycons_hint else R.string.glasses_joycons_requires_position),
                     s.joyConTracking, enabled = s.positionalTracking, chipModifier = track("glasses-joycons")) { Glasses.setJoyConTracking(it) }
             }
-        }
-        if (hands.usable) SettingsGroup(stringResource(R.string.phone_camera_tracking_group)) {
-            HandCameraRows(host, track, inSession)
         }
     }
 
@@ -389,3 +380,13 @@ private fun GlassesRecenterAction(label: String, tag: String, tint: Int, opacity
     }
 }
 
+
+@Composable
+internal fun HandCalibrationStatus(status: com.droiddeck.launcher.glasses.SpatialTrackingStatus) {
+    val (label, hint) = when {
+        status.calibrationSource == "luma-ultra-base" -> R.string.glasses_hands_base to R.string.glasses_hands_base_hint
+        status.calibrationVerified -> R.string.glasses_hands_calibration_verified to R.string.glasses_hands_ready_hint
+        else -> R.string.glasses_hands_calibration_required to R.string.glasses_hands_calibration_required_hint
+    }
+    SettingsRow(stringResource(label), stringResource(hint)) {}
+}

@@ -25,7 +25,7 @@ internal object TrackingPack {
 
     fun installed(context: Context) = pack.installed(context)
     fun refresh(context: Context) = pack.refresh(context)
-    fun ensure(context: Context) = pack.ensure(context) { HandTracking.load(it) }
+    fun ensure(context: Context) = pack.ensure(context) { }
 
     fun file(context: Context, name: String): File = pack.file(context, name)
 

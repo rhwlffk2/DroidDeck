@@ -196,10 +196,6 @@ class MainActivity : ComponentActivity() {
         SessionPrefs.setWifiDiscoveryEnabled(this, WifiDiscovery.permissionGranted(this))
         refreshWifiDiscovery()
     }
-    private val cameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-        com.droiddeck.launcher.handtracking.HandTracking.refreshPermission(this)
-    }
-    private var placementCheck by mutableStateOf<Boolean?>(null)
     private val wifiPermissionSettings = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         SessionPrefs.setWifiDiscoveryEnabled(this, WifiDiscovery.permissionGranted(this))
         refreshWifiDiscovery()
@@ -1106,12 +1102,6 @@ class MainActivity : ComponentActivity() {
                         onDismiss = { lowSpace = null },
                     )
                 }
-                com.droiddeck.launcher.ui.HandCameraHost(
-                    check = placementCheck,
-                    onAskPermission = { cameraPermission.launch(Manifest.permission.CAMERA) },
-                    onPlay = { placementCheck = null; startSteamSession(steamVr = true) },
-                    onClose = { placementCheck = null },
-                )
                 if (showResetSettings) com.droiddeck.launcher.ui.ResetSettingsDialog(
                     onConfirm = { gameProfiles -> resetSettings(gameProfiles) },
                     onDismiss = { showResetSettings = false },
@@ -1177,10 +1167,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun playSteamVr() {
-        val tracking = com.droiddeck.launcher.glasses.Glasses.settings.value
-        if (!com.droiddeck.launcher.glasses.Glasses.state.value.usesSpatialControllers(tracking) &&
-            com.droiddeck.launcher.handtracking.HandTracking.wanted(this)) placementCheck = true
-        else startSteamSession(steamVr = true)
+        startSteamSession(steamVr = true)
     }
 
     private fun startSteamSession(steamVr: Boolean = false) {
