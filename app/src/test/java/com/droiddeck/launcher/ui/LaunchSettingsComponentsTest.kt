@@ -65,7 +65,7 @@ class LaunchSettingsComponentsTest {
                         onRuntime = {}, onFrameGenPick = {},
                         onProtons = {}, onComponents = { defaultOpens++ },
                         onGameComponents = { openedGame = it }, onPerformance = {},
-                        onFiles = {}, onLogs = {}, onOffline = {},
+                        onLogs = {}, onOffline = {},
                     ),
                     rememberMenuHost(),
                     game,

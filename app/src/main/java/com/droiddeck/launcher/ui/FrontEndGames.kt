@@ -72,17 +72,13 @@ internal fun GamesPage(s: FrontEndState, a: FrontEndActions, selected: String, o
     val narrow = LocalNarrowPane.current
     val current = games.firstOrNull { "app:${it.appId}" == selected } ?: games.firstOrNull()
     GamesDialogs(a, s.steamGames)
-    val onAdd: (() -> Unit)? = if (s.shortcutPicker) null else ({ GamesDialogState.adding = true })
+    val onAdd: (() -> Unit)? = null
     val launch: (Library.SteamGame) -> Unit = { g -> a.onSteamGame(g) }
-    val onEdit: (Library.SteamGame) -> Unit = { g ->
-        g.gameFiles?.let { GamesDialogState.editing = EditRequest(it.path, openTarget = false, fromSummary = false, preview = EditPreview.of(pageContext, g, it.path)) }
-    }
     if (current == null || gameCount == 0) {
         Column(modifier = modifier.padding(horizontal = if (narrow) 16.dp else 22.dp, vertical = if (narrow) 12.dp else 18.dp)) {
             Rise(0) {
                 PageHeader(stringResource(R.string.content_games)) {
                     if (s.steamGamesX64) ClientTag()
-                    onAdd?.let { AddGameButton(it) }
                 }
             }
             Rise(1) { Note(stringResource(if (s.shortcutPicker && s.shortcutLibraryScanning) R.string.game_shortcut_scanning else R.string.games_empty)) }
@@ -98,12 +94,12 @@ internal fun GamesPage(s: FrontEndState, a: FrontEndActions, selected: String, o
     val host = rememberMenuHost()
     if (games.size == 1) {
         Column(modifier = modifier.verticalScroll(rememberScrollState()).padding(horizontal = if (narrow) 16.dp else 22.dp, vertical = if (narrow) 12.dp else 18.dp)) {
-            if (onAdd != null) Rise(0) { GamesHeader(gameCount, s.steamGamesX64, onAdd, Modifier.padding(bottom = 10.dp)) }
+            if (!s.shortcutPicker) Rise(0) { GamesHeader(gameCount, s.steamGamesX64, onAdd, Modifier.padding(bottom = 10.dp)) }
             Rise(0) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     GameHero(current, Modifier.weight(1f).heightIn(min = if (narrow) 190.dp else 250.dp), corner = { GameRemoveButton(current, s, a) }) {
                         GameHeroCopy(current, if (narrow) 28.sp else 38.sp)
-                        GameActions(current, s, a, onEdit, launch)
+                        GameActions(current, s, a, launch)
                     }
                     if (!narrow) Poster(current.art, current.name, Modifier.width(168.dp))
                 }
@@ -125,7 +121,7 @@ internal fun GamesPage(s: FrontEndState, a: FrontEndActions, selected: String, o
         ) {
             GameHero(current, Modifier.fillMaxWidth().heightIn(min = if (narrow) 170.dp else 200.dp), corner = { GameRemoveButton(current, s, a) }) {
                 GameHeroCopy(current, if (narrow) 24.sp else 32.sp)
-                GameActions(current, s, a, onEdit, launch)
+                GameActions(current, s, a, launch)
             }
             SectionTitle(stringResource(R.string.games_launch_settings), null)
             LaunchSettings(s, a, host, current)
@@ -153,19 +149,14 @@ private fun GameFileFolderActions(s: FrontEndState, a: FrontEndActions) {
 
 
 @Composable
-private fun GameActions(g: Library.SteamGame, s: FrontEndState, a: FrontEndActions, onEdit: (Library.SteamGame) -> Unit, launch: (Library.SteamGame) -> Unit) {
+private fun GameActions(g: Library.SteamGame, s: FrontEndState, a: FrontEndActions, launch: (Library.SteamGame) -> Unit) {
     Actions {
         PrimaryButton(stringResource(if (s.shortcutPicker) R.string.game_shortcut_choose else R.string.games_launch), enabled = !s.busy, main = true, icon = Icons.Filled.PlayArrow) { launch(g) }
-        g.gameFiles?.takeIf { it.isDirectory }?.let { dir ->
-            SecondaryButton(stringResource(R.string.games_files), compact = true) { a.onBrowseFiles(dir) }
-        }
         g.protonPrefix?.takeIf { it.isDirectory }?.let { dir ->
-            SecondaryButton(stringResource(R.string.games_prefix), compact = true) { a.onBrowseFiles(dir) }
             if (g.library == Library.ADDED) ManageSaves(g, dir, a)
         }
         if (!s.shortcutPicker) GameShortcutMenu(g, a)
-        if (!s.shortcutPicker && g.library == Library.ADDED && g.source == Library.ADDED && g.gameFiles != null) EditGameButton { onEdit(g) }
-        else if (!s.shortcutPicker && g.library != Library.ADDED && g.source == Library.SOURCE_STEAM) EditGameButton { GamesDialogState.steamArt = g }
+        if (!s.shortcutPicker && g.library != Library.ADDED && g.source == Library.SOURCE_STEAM) EditGameButton { GamesDialogState.steamArt = g }
         else if (!s.shortcutPicker && g.library == Library.ADDED && g.source != Library.ADDED && g.gameFiles != null) EditGameButton { GamesDialogState.storeArt = g }
         BusyChip(s)
     }
@@ -225,11 +216,6 @@ private fun ManageSaves(g: Library.SteamGame, prefix: java.io.File, a: FrontEndA
             MenuItem(stringResource(R.string.games_export_winlator), checked = false) {
                 open = false; a.onSaveExport(g, com.droiddeck.launcher.session.GameSaves.Layout.WINLATOR)
             }
-            found?.firstOrNull()?.let { d ->
-                MenuItem(stringResource(R.string.games_open_save_folder), checked = false, detail = d.relPath) {
-                    open = false; a.onBrowseFiles(java.io.File(prefix, "drive_c/users/steamuser/" + d.relPath))
-                }
-            }
         }
     }
 }
@@ -286,7 +272,6 @@ private fun GamesHeader(count: Int, x64: Boolean, onAdd: (() -> Unit)?, modifier
             Text(stringResource(R.string.content_games), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = colors.onBackground, maxLines = 1)
             Text(count.toString(), fontSize = 13.sp, color = colors.onSurfaceVariant)
             if (x64 && !narrow) ClientTag()
-            if (onAdd != null) AddGameButton(onAdd)
         }
         if (x64 && narrow) Box(Modifier.padding(top = 4.dp)) { ClientTag() }
     }
@@ -298,13 +283,8 @@ private fun ClientTag() {
 }
 
 internal object GamesDialogState {
-    var adding by androidx.compose.runtime.mutableStateOf(false)
-    var summary by androidx.compose.runtime.mutableStateOf<Pair<List<com.droiddeck.launcher.frontend.AddedGames.Game>, Int>?>(null)
-    var editing by androidx.compose.runtime.mutableStateOf<EditRequest?>(null)
-    var checking by androidx.compose.runtime.mutableStateOf<String?>(null)
     var steamArt by androidx.compose.runtime.mutableStateOf<Library.SteamGame?>(null)
     var storeArt by androidx.compose.runtime.mutableStateOf<Library.SteamGame?>(null)
-    var behindEditor: Pair<List<com.droiddeck.launcher.frontend.AddedGames.Game>, Int>? = null
 }
 
 @Composable
@@ -312,51 +292,12 @@ private fun GamesDialogs(a: FrontEndActions, games: List<Library.SteamGame>) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val st = GamesDialogState
-    if (st.adding) ExePickerDialog(
-        stringResource(R.string.games_add_title),
-        onAddAll = { dir ->
-            st.summary = emptyList<com.droiddeck.launcher.frontend.AddedGames.Game>() to 0
-            st.checking = dir.name
-            scope.launch {
-                val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    com.droiddeck.launcher.frontend.AddedGames.addFolder(
-                        ctx.applicationContext, dir,
-                        onGame = { g -> scope.launch { st.summary?.let { (list, n) -> st.summary = (list + g) to n } } },
-                        onChecking = { name -> scope.launch { st.checking = name } },
-                    )
-                }
-                st.checking = null
-                a.onAddedGamesChanged(result.added.map { it.folder.path })
-                st.summary?.let { (list, _) -> st.summary = list to result.already }
-            }
-        },
-        onPick = { a.onAddGameExe(it.path) },
-        onDismiss = { st.adding = false },
-    )
-    st.summary?.let { (added, already) ->
-        AddedGamesSummaryDialog(added, already, checking = st.checking, onOpen = { folder, uncertain, preview ->
-            st.behindEditor = added to already
-            st.editing = EditRequest(folder, openTarget = uncertain, fromSummary = true, preview = preview)
-        }, onRemove = { folder, appId, name ->
-            st.summary = st.summary?.let { (list, n) -> list.filterNot { it.folder.path == folder } to n }
-            a.onAddedGameRemoved(folder, appId, name)
-        }, onDismiss = { st.summary = null; st.checking = null })
-    }
     st.steamArt?.let { game ->
         SteamGameArtEditor(games.firstOrNull { it.appId == game.appId && it.library != Library.ADDED } ?: game, onClose = { st.steamArt = null }, onChanged = { a.onSteamGameArtChanged(game.appId) })
     }
     st.storeArt?.let { game ->
         val folder = game.gameFiles?.path
         if (folder != null) StoreGameArtEditor(folder, game.name, onClose = { st.storeArt = null }, onChanged = { a.onAddedGamesChanged(listOf(folder)) })
-    }
-    st.editing?.let { request ->
-        AddedGameEditor(
-            request,
-            onBack = { st.behindEditor?.let { st.summary = it }; st.behindEditor = null },
-            onClose = { st.editing = null },
-            onChanged = { a.onAddedGamesChanged(listOf(request.folder)) },
-            onRemove = { folder, appId, name -> a.onAddedGameRemoved(folder, appId, name) },
-        )
     }
 }
 
@@ -418,27 +359,6 @@ private fun EditGameButton(onClick: () -> Unit) {
             .semantics { contentDescription = label },
     ) {
         androidx.compose.material3.Icon(Icons.Outlined.Edit, contentDescription = null, tint = colors.onBackground, modifier = Modifier.size(18.dp))
-    }
-}
-
-@Composable
-private fun AddGameButton(onClick: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    val pal = LocalPalette.current
-    val src = remember { MutableInteractionSource() }
-    val focused by src.collectIsFocusedAsState()
-    val hovered by src.collectIsHoveredAsState()
-    val label = stringResource(R.string.games_add)
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.paneItem("games:add").size(32.dp).clip(CircleShape)
-            .background(if (focused || hovered) pal.signal.copy(alpha = 0.18f) else colors.surfaceVariant)
-            .glideBorder(focused, CircleShape, pal.signal)
-            .hoverable(src).clickable(interactionSource = src, indication = LocalIndication.current, role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
-            .controllerConfirm(onClick = onClick)
-            .semantics { contentDescription = label },
-    ) {
-        androidx.compose.material3.Icon(Icons.Filled.Add, contentDescription = null, tint = colors.onBackground, modifier = Modifier.size(20.dp))
     }
 }
 

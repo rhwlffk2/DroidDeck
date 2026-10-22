@@ -172,9 +172,6 @@ class MainActivity : ComponentActivity() {
     private val pickAndroidDriver = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
         if (r.resultCode == RESULT_OK) InAppFilePicker.pickedUri(r.data)?.let { drivers.importDriver(it, linux = false) }
     }
-    private val pickBootMovie = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
-        if (r.resultCode == RESULT_OK) InAppFilePicker.pickedFile(r.data)?.let { importBootMovie(it) }
-    }
     private val pickAnyDriver = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
         if (r.resultCode == RESULT_OK) InAppFilePicker.pickedUri(r.data)?.let { drivers.importDriver(it, linux = null) }
     }
@@ -185,38 +182,6 @@ class MainActivity : ComponentActivity() {
     private val pickSaveDir = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
         val then = onSavePicked.also { onSavePicked = null } ?: return@registerForActivityResult
         if (r.resultCode == RESULT_OK) InAppFilePicker.pickedFile(r.data)?.let(then)
-    }
-
-    private fun importBootMovie(file: File) {
-        bootMovieImporting = true
-        bootMovieProgress = -1
-        Thread({
-            val result = com.droiddeck.launcher.session.BootMovie.import(
-                this, file,
-                onStart = { ui.post { android.widget.Toast.makeText(this, getString(R.string.boot_movie_converting_started, file.name), android.widget.Toast.LENGTH_LONG).show() } },
-                onProgress = { percent -> ui.post { bootMovieProgress = percent } },
-            )
-            val message = when (result) {
-                is com.droiddeck.launcher.session.BootMovie.Import.Done -> getString(
-                    if (result.audioDropped) R.string.boot_movie_imported_silent else R.string.boot_movie_imported, result.name)
-                com.droiddeck.launcher.session.BootMovie.Import.TooLong ->
-                    getString(R.string.boot_movie_too_long, com.droiddeck.launcher.session.BootMovie.MAX_CONVERT_SECONDS)
-                is com.droiddeck.launcher.session.BootMovie.Import.Unsupported -> getString(R.string.boot_movie_unsupported)
-                com.droiddeck.launcher.session.BootMovie.Import.Failed -> getString(R.string.boot_movie_import_failed)
-            }
-            ui.post {
-                bootMovieImporting = false
-                bootMovieProgress = -1
-                loadBootMovie()
-                android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
-            }
-        }, "boot-movie-import").start()
-    }
-
-    private fun loadBootMovie() {
-        bootMovie = com.droiddeck.launcher.session.BootMovie.choice(this)
-        bootMovieSound = SessionPrefs.bootMovieSound(this)
-        bootMovieCustomName = com.droiddeck.launcher.session.BootMovie.customName(this)
     }
 
     private fun importSaves(name: String, game: () -> GameSaves.Game) {
@@ -247,29 +212,6 @@ class MainActivity : ComponentActivity() {
         GameSaves.savesDir().mkdirs()
         pickSaveDir.launch(InAppFilePicker.buildDirIntent(this, getString(R.string.main_saves_pick_folder, name, layout.label(this)), GameSaves.savesDir().path))
     }
-    private fun addGameExe(path: String) {
-        val exe = java.io.File(path)
-        Thread({
-            val result = try { com.droiddeck.launcher.frontend.AddedGames.addExe(this, exe) } catch (e: Exception) {
-                Log.w(TAG, "add game: ${e.message}"); com.droiddeck.launcher.frontend.AddedGames.AddResult.NotFound
-            }
-            val game = when (result) {
-                is com.droiddeck.launcher.frontend.AddedGames.AddResult.Added -> result.game
-                is com.droiddeck.launcher.frontend.AddedGames.AddResult.Existing -> result.game
-                is com.droiddeck.launcher.frontend.AddedGames.AddResult.Switched -> result.game
-                else -> null
-            }
-            ui.post {
-                if (game == null) {
-                    if (result is com.droiddeck.launcher.frontend.AddedGames.AddResult.Unreachable)
-                        android.widget.Toast.makeText(this, R.string.games_add_unreachable, android.widget.Toast.LENGTH_LONG).show()
-                    return@post
-                }
-                updateAddedGames(listOf(game.folder.path), then = { fetchAddedGameArt() })
-                navRequest = "app:${game.steamAppId ?: game.appId.toInt()}"
-            }
-        }, "add-game-exe").start()
-    }
     private var addedGamesArt by mutableStateOf(true)
     @Volatile private var artFetchRunning = false
     private var sgdbUserKey by mutableStateOf(false)
@@ -279,11 +221,6 @@ class MainActivity : ComponentActivity() {
     private var forceSsbs by mutableStateOf(false)
     private var steamClientArch by mutableStateOf("arm64")
     private var runSteamAtStartup by mutableStateOf(false)
-    private var bootMovie by mutableStateOf(com.droiddeck.launcher.session.BootMovie.DROIDDECK_30)
-    private var bootMovieSound by mutableStateOf(true)
-    private var bootMovieCustomName by mutableStateOf<String?>(null)
-    private var bootMovieImporting by mutableStateOf(false)
-    private var bootMovieProgress by mutableStateOf(-1)
     private var theme by mutableStateOf("graphite")
     private var appScale by mutableStateOf(com.droiddeck.launcher.core.AppUiPrefs.DEFAULT_SCALE)
     private var hdrOn by mutableStateOf(false)
@@ -635,7 +572,6 @@ class MainActivity : ComponentActivity() {
                         onGameShortcut = { g -> com.droiddeck.launcher.frontend.GameShortcuts.pin(this, g) },
                         onExportGameFile = { g -> pickGameExport(g) },
                         onSyncGameFiles = { pickGameExport(null) },
-                        onAddGameExe = { path -> addGameExe(path) },
                         onAddedGamesChanged = { folders ->
                             val known = steamGames.mapNotNull { it.gameFiles?.path }.toSet()
                             updateAddedGames(folders, then = { if (folders.any { it !in known }) fetchAddedGameArt() })
@@ -676,11 +612,6 @@ class MainActivity : ComponentActivity() {
                         onSaveImport = { sg -> importSaves(sg.name) { GameSaves.game(sg) } },
                         onSaveExport = { sg, layout -> exportSaves(sg.name, layout) { GameSaves.game(sg) } },
                         onPerformance = { refreshCores(); showComponents = false; showMapping = false; showPerformance = true },
-                        onFiles = { startActivity(Intent(this, com.droiddeck.launcher.files.FileManagerActivity::class.java)) },
-                        onBrowseFiles = { dir ->
-                            startActivity(Intent(this, com.droiddeck.launcher.files.FileManagerActivity::class.java)
-                                .putExtra(com.droiddeck.launcher.files.FileManagerActivity.EXTRA_START_DIR, dir.absolutePath))
-                        },
                         onLogs = {
                             SessionPrefs.setLogsEnabled(this, !SessionPrefs.logsEnabled(this))
                             logsEnabled = SessionPrefs.logsEnabled(this)
@@ -1239,11 +1170,6 @@ class MainActivity : ComponentActivity() {
                 steamRepairQueued = steamRepairQueued,
                 steamController = if (mode == SessionService.MODE_STEAM) steamController else null,
                 runSteamAtStartup = mode == SessionService.MODE_STEAM && runSteamAtStartup,
-                bootMovie = if (mode == SessionService.MODE_STEAM) bootMovie else null,
-                bootMovieSound = bootMovieSound,
-                bootMovieCustomName = bootMovieCustomName,
-                bootMovieImporting = bootMovieImporting,
-                bootMovieProgress = bootMovieProgress,
             ),
             ModeSettingsActions(
                 onResolution = { value -> SessionPrefs.setResolutionChoice(this, mode, value); resolution = value },
@@ -1299,12 +1225,6 @@ class MainActivity : ComponentActivity() {
                     SessionPrefs.setRunSteamAtStartup(this, on)
                     runSteamAtStartup = on
                 },
-                onBootMovie = { id -> com.droiddeck.launcher.session.BootMovie.select(this, id); loadBootMovie() },
-                onBootMovieSound = { on -> SessionPrefs.setBootMovieSound(this, on); bootMovieSound = on },
-                onImportBootMovie = {
-                    pickBootMovie.launch(InAppFilePicker.buildIntent(this, com.droiddeck.launcher.session.BootMovie.PICKER_EXTENSIONS, getString(R.string.boot_movie_pick)))
-                },
-                onBootMovieChanged = { loadBootMovie() },
                 onDismiss = {},
             ),
             tab, extras,
@@ -1443,7 +1363,6 @@ class MainActivity : ComponentActivity() {
         steamRepairQueued = SteamRepair.queued(this)
         steamController = SessionPrefs.steamController(this)
         runSteamAtStartup = SessionPrefs.runSteamAtStartup(this)
-        loadBootMovie()
         hdrOn = SessionPrefs.hdr(this, mode)
         fpsLimit = SessionPrefs.fpsLimit(this, mode)
         upscaler = SessionPrefs.upscaler(this)

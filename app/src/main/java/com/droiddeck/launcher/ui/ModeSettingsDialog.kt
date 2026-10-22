@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import com.droiddeck.launcher.core.FexPreset
-import com.droiddeck.launcher.session.BootMovie
 import com.droiddeck.launcher.session.SessionPrefs
 import com.droiddeck.launcher.session.SessionService
 
@@ -85,11 +84,6 @@ class ModeSettings(
     val steamController: String? = null,
     val unfoldedControls: Boolean? = null,
     val runSteamAtStartup: Boolean = false,
-    val bootMovie: String? = null,
-    val bootMovieSound: Boolean = true,
-    val bootMovieCustomName: String? = null,
-    val bootMovieImporting: Boolean = false,
-    val bootMovieProgress: Int = -1,
 )
 
 class ModeSettingsActions(
@@ -121,10 +115,6 @@ class ModeSettingsActions(
     val onSteamController: (String) -> Unit = {},
     val onUnfoldedControls: (Boolean) -> Unit = {},
     val onRunSteamAtStartup: (Boolean) -> Unit = {},
-    val onBootMovie: (String) -> Unit = {},
-    val onBootMovieSound: (Boolean) -> Unit = {},
-    val onImportBootMovie: () -> Unit = {},
-    val onBootMovieChanged: () -> Unit = {},
     val onDismiss: () -> Unit,
 )
 
@@ -385,7 +375,6 @@ fun ModeSheetRows(s: ModeSettings, a: ModeSettingsActions, tab: String, extras: 
                 onPick = a.onSteamClientArch,
             )
         }
-        if (s.bootMovie != null) BootMovieGroup(s, a, host)
     }
 }
 

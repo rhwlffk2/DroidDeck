@@ -154,42 +154,17 @@ object SessionFiles {
             Log.e(TAG, "could not write steam-compatibility-label")
         }
 
-        BootMovie.syncFromSteam(context)
-        val startupMovie = BootMovie.prepare(context)
-        val force = SessionPrefs.bootMovieApplyNext(context)
+        // DroidDeck no longer stages a startup movie: copies an earlier version left are removed and Steam goes back to its own.
         val steamHomes = listOf(File(root, "root/.local/share/Steam")) +
             listOf(File(root, "root/.droiddeck-x64/.local/share/Steam")).filter { File(it, "config").isDirectory }
-        var allDone = true
-        var allInstalled = true
-        var seen: String? = null
-        val activeIsX64 = SessionPrefs.activeSteamClientArch(context) == "x86_64"
         for (home in steamHomes) {
             val movieDir = File(home, "config/uioverrides/movies")
-            val config = File(home, "config/config.vdf")
-            if (startupMovie == null) {
-                // Nothing to play (a movie whose volume could not be set is never played at another volume), so no earlier copy plays either.
-                for (name in listOf("bigpicture_startup.webm", "steam_os_startup.webm")) {
-                    File(movieDir, name).delete()
-                    File(movieDir, ".$name.source").delete()
-                }
+            for (name in listOf("bigpicture_startup.webm", "steam_os_startup.webm")) {
+                File(movieDir, name).delete()
+                File(movieDir, ".$name.source").delete()
             }
-            val bigPictureMovieInstalled = startupMovie != null && stageStartupMovie(startupMovie, movieDir, "bigpicture_startup.webm")
-            if (startupMovie != null) stageStartupMovie(startupMovie, movieDir, "steam_os_startup.webm")
-            val before = startupMoviePath(config)
-            val done = if (bigPictureMovieInstalled) ensureStartupMovieDefault(config, force) else resetMissingStartupMovie(config, force)
-            BootMovieReport.note(
-                context,
-                "stage session=$startsSession pending=$force choice=${SessionPrefs.bootMovie(context)} movie=${startupMovie?.path} " +
-                    "staged=$bigPictureMovieInstalled done=$done steam=${home.path} config: $before -> ${startupMoviePath(config)}",
-            )
-            if (!done) allDone = false
-            if (!bigPictureMovieInstalled) allInstalled = false
-            if (done && home.path.contains(".droiddeck-x64") == activeIsX64) seen = if (bigPictureMovieInstalled) BOOT_MOVIE_PATH else ""
+            resetMissingStartupMovie(File(home, "config/config.vdf"), false)
         }
-        // A pick made in the app is done once a session started with every Steam client's config having it; guest commands run
-        // before that, and a Steam that is already running writes its own choice back when it exits.
-        if (force && allDone && allInstalled && startsSession) SessionPrefs.setBootMovieApplyNext(context, false)
-        seen?.let { SessionPrefs.setBootMovieSteamSeen(context, it) }
     }
 
     /**

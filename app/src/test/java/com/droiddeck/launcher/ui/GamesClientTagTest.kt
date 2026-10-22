@@ -57,7 +57,7 @@ class GamesClientTagTest {
                             onResume = {}, onSteamSettings = {},
                             onRuntime = {}, onFrameGenPick = {},
                             onProtons = {}, onComponents = {}, onPerformance = {},
-                            onFiles = {}, onLogs = {}, onOffline = {},
+                            onLogs = {}, onOffline = {},
                         ), selected = "app:440", onSelect = {}, modifier = Modifier.fillMaxSize())
                     }
                 }
