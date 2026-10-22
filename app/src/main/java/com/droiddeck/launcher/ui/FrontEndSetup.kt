@@ -138,25 +138,9 @@ internal fun SetupPanel(
     s: FrontEndState,
     a: FrontEndActions,
     onOpenDeveloperOptions: () -> Unit,
-    onRequestWirelessAdb: (Boolean) -> Unit,
 ) {
     val host = rememberMenuHost()
     val ctx = LocalContext.current
-    var processLimitBusy by remember { mutableStateOf(false) }
-    var processLimitMessage by remember { mutableStateOf<String?>(null) }
-    val setProcessLimit: (Boolean) -> Unit = { enabled ->
-        processLimitBusy = true
-        processLimitMessage = null
-        a.onSetPhantomProcessLimit(enabled) { error ->
-            processLimitBusy = false
-            if (error == null) {
-                a.onRefreshPhantomStatus()
-            } else {
-                processLimitMessage = ctx.getString(R.string.setup_limit_adb_failed)
-                onRequestWirelessAdb(enabled)
-            }
-        }
-    }
     val runtime = when {
         s.busy -> stringResource(R.string.common_working)
         s.removalPending -> stringResource(R.string.setup_retry_removal)
@@ -286,14 +270,9 @@ internal fun SetupPanel(
                                     Actions {
                                         if (limitBlocks) {
                                             PrimaryButton(stringResource(R.string.setup_dev_options), compact = true, onClick = onOpenDeveloperOptions)
-                                            SecondaryButton(stringResource(R.string.setup_use_wireless), compact = true, enabled = !processLimitBusy) { setProcessLimit(false) }
                                             SecondaryButton(stringResource(R.string.setup_check_again), compact = true, onClick = a.onRefreshPhantomStatus)
-                                        } else if (s.phantomProcessStatus == PhantomProcessStatus.DISABLED) {
-                                            SecondaryButton(stringResource(R.string.setup_limit_turn_on), compact = true, enabled = !processLimitBusy) { setProcessLimit(true) }
                                         }
                                     }
-                                    if (processLimitBusy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp))
-                                    processLimitMessage?.let { Text(it, fontSize = 14.sp, color = colors.onSurfaceVariant, modifier = Modifier.padding(vertical = 4.dp)) }
                                 }
                             }
                             if (divider && showLimitDetails) Box(Modifier.fillMaxWidth().height(1.dp).background(pal.line))

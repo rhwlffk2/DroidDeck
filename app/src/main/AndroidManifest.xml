@@ -203,9 +203,6 @@
             android:name=".runtime.RuntimeInstallService"
             android:exported="false" />
         <service
-            android:name=".core.WirelessAdbPairingService"
-            android:exported="false" />
-        <service
             android:name=".stores.download.StoreDownloadService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
