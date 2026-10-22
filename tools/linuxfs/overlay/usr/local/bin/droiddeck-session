@@ -134,11 +134,6 @@ export XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
 export XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}
 mkdir -p "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME"
 rm -f "${XDG_RUNTIME_DIR:-/run/droiddeck}/droiddeck-remote-play"
-if [ "$mode" = lxqt ] || [ "$mode" = desktop ]; then
-  /usr/local/bin/droiddeck-desktop-bookmarks || true
-fi
-export FLATPAK_BWRAP=/usr/local/bin/droiddeck-bwrap
-export XDG_DATA_DIRS=$XDG_DATA_HOME/flatpak/exports/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}
 
 client_single_core_matches() {
   local wanted=$1 task key cpus
@@ -199,17 +194,6 @@ if [ -z "${BL_INSIDE:-}" ]; then
     wayland-info >/dev/null 2>&1 && break
     sleep 0.1
   done
-  if [ "$mode" = lxqt ]; then
-    step "starting the desktop"
-    start_agent --no-focus
-    [ -x /usr/local/bin/droiddeck-desktop ] || { echo "== the desktop package is not installed"; exit 66; }
-    cores=$(program_cores)
-    if [ -n "$cores" ]; then
-      echo "== desktop cores: $cores (the desktop and every program started from it)"
-      taskset -cp "$cores" $$ >/dev/null 2>&1 || echo "== desktop cores: not allowed right now, every core"
-    fi
-    exec /usr/local/bin/droiddeck-desktop
-  fi
   width=${BL_WIDTH:-1280}
   height=${BL_HEIGHT:-720}
   nested=$width
@@ -280,16 +264,13 @@ reap_orphans() {
   done
 }
 
-if [ "${BL_DESKTOP:-}" != 1 ] && [ -n "${BL_ANDROID_CLIPBOARD:-}" ] && [ -x /usr/local/bin/droiddeck-clipboard ]; then
+if [ -n "${BL_ANDROID_CLIPBOARD:-}" ] && [ -x /usr/local/bin/droiddeck-clipboard ]; then
   /usr/local/bin/droiddeck-clipboard "$BL_ANDROID_CLIPBOARD" &
 fi
 
-[ "${BL_DESKTOP:-}" = 1 ] || start_agent
+start_agent
 
 case $mode in
-  desktop)
-    exec pcmanfm
-    ;;
   run)
     target=${1:?program path}
     shift
@@ -298,7 +279,6 @@ case $mode in
       echo "== program cores: $cores"
       taskset -cp "$cores" $$ >/dev/null 2>&1 || true
     fi
-    python3 /usr/local/bin/droiddeck-pad-defaults 2>&1 || true
     if [ -n "${GAMESCOPE_WAYLAND_DISPLAY:-}" ]; then
       export WAYLAND_DISPLAY= XDG_SESSION_TYPE=x11
     fi
@@ -476,7 +456,7 @@ case $mode in
     else
       rm -f /tmp/.bl-zram
     fi
-    if [ "${BL_LAUNCHER_CORES:-1}" != 0 ] && [ -n "${BL_LAUNCH_DIR:-}" ] && [ -z "${BL_DESKTOP:-}" ] \
+    if [ "${BL_LAUNCHER_CORES:-1}" != 0 ] && [ -n "${BL_LAUNCH_DIR:-}" ] \
        && [ "${BL_STEAM_UI:-}" != desktop ] && [ -x /usr/local/bin/droiddeck-launcher-cores ]; then
       /usr/local/bin/droiddeck-launcher-cores "$BL_LAUNCH_DIR/agent/focus.json" 2>&1 &
     fi
@@ -486,7 +466,7 @@ case $mode in
     droiddeck-steam-library "$steam_root" || true
     step "setting up the ARM64 Proton compatibility tool"
     steam-compatibility "$steam_root" || true
-    if [ -z "${BL_DESKTOP:-}" ] && [ "${BL_STEAM_UI:-}" != desktop ]; then
+    if [ "${BL_STEAM_UI:-}" != desktop ]; then
       droiddeck-steam-ui-scale "$steam_root" "${BL_WIDTH:-1280}" "${BL_HEIGHT:-720}" || true
     fi
     if [ -n "${BL_ADDED_GAMES:-}" ]; then
@@ -504,7 +484,7 @@ case $mode in
       step "pointing the x86-64 client's Windows titles at $_bl_x64_tool"
       BL_COMPAT_TOOL=$_bl_x64_tool steam-compatibility "$steam_root" --x64 || true
     fi
-    if [ -z "${BL_DESKTOP:-}" ] && [ "${BL_STEAM_UI:-}" != desktop ]; then
+    if [ "${BL_STEAM_UI:-}" != desktop ]; then
       droiddeck-steam-ui-scale "$steam_root" "${BL_WIDTH:-1280}" "${BL_HEIGHT:-720}" || true
     fi
     droiddeck-seed-redists "$steam_root" || true
@@ -554,7 +534,7 @@ case $mode in
         ) &
       fi
     fi
-    [ -z "${BL_DESKTOP:-}" ] && (
+    (
       stretch=0 restore=0
       [ "${BL_STRETCHED:-0}" = 1 ] && stretch=1
       [ "${BL_RESTORE_ON_RESUME:-1}" = 1 ] && restore=1
@@ -643,7 +623,7 @@ case $mode in
         echo "== steam: the game took focus while waiting; not launching again"
       fi
     }
-    if [ -n "${BL_LAUNCH_DIR:-}" ] && [ -z "${BL_DESKTOP:-}" ]; then
+    if [ -n "${BL_LAUNCH_DIR:-}" ]; then
       _bl_held=
       _bl_uninstall=
       _bl_rest=()
@@ -735,39 +715,6 @@ BUSCONF
     export STEAM_RUNTIME=1
     export LD_LIBRARY_PATH=$steam_root/steamrtarm64:$steam_root/steamrtarm64/panorama${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     export SDL_VIDEO_X11_DGAMOUSE=0
-    decky_loader=$HOME/homebrew/services/PluginLoader
-    if [ -f "$HOME/.droiddeck-decky-enabled" ] && [ -x "$decky_loader" ]; then
-      decky_arch=$(cat "$HOME/homebrew/services/.droiddeck-decky-arch" 2>/dev/null || echo unknown)
-      if [ "$decky_arch" = arm64 ] || { [ "$decky_arch" = x86_64 ] && /usr/local/bin/droiddeck-fex prepare >/dev/null; }; then
-        (
-          decky_child=
-          decky_stop() { [ -z "$decky_child" ] || kill "$decky_child" 2>/dev/null; [ -z "$decky_child" ] || wait "$decky_child" 2>/dev/null; exit 0; }
-          trap decky_stop TERM INT HUP
-          decky_exits=0
-          while :; do
-            if [ "$decky_arch" = x86_64 ]; then /usr/local/bin/droiddeck-fex run --mode on -- "$decky_loader" >>"$HOME/homebrew/services/PluginLoader.log" 2>&1 &
-            else "$decky_loader" >>"$HOME/homebrew/services/PluginLoader.log" 2>&1 &
-            fi
-            decky_child=$!
-            decky_status=0
-            wait "$decky_child" || decky_status=$?
-            decky_child=
-            decky_exits=$((decky_exits + 1))
-            if [ "$decky_exits" -ge 5 ]; then
-              echo "== Decky: stopped after $decky_exits loader exits (last status $decky_status)"
-              break
-            fi
-            decky_delay=$((decky_exits * 3))
-            echo "== Decky: loader exited with status $decky_status; restart $((decky_exits + 1))/5 in ${decky_delay}s"
-            sleep "$decky_delay"
-          done
-        ) &
-        decky_supervisor=$!
-        echo "== Decky: session supervisor started ($decky_arch)"
-      else
-        echo "== Decky: installed loader architecture is unsupported by this guest; not starting"
-      fi
-    fi
     _bl_cdp=()
     if [ -f "$steam_root/.cef-enable-remote-debugging" ]; then
       export BL_CDP_PORT=8080
@@ -775,22 +722,14 @@ BUSCONF
       export BL_CDP_PORT=$((20000 + RANDOM % 30000))
       _bl_cdp=(-cef-enable-debugging -devtools-port "$BL_CDP_PORT")
     fi
-    if [ -f "$HOME/.droiddeck-decky-enabled" ] && [ "${decky_arch:-}" = x86_64 ]; then
-      echo "== steam: devtools port $BL_CDP_PORT left open for the x86_64 Decky loader"
-    else
-      export BL_CDP_GUARD=$BL_CDP_PORT
-      echo "== steam: devtools port $BL_CDP_PORT, guest processes only"
-    fi
+    export BL_CDP_GUARD=$BL_CDP_PORT
+    echo "== steam: devtools port $BL_CDP_PORT, guest processes only"
     [ -n "${BL_LAUNCH_DIR:-}" ] && mkdir -p "$BL_LAUNCH_DIR/agent" && echo "$BL_CDP_PORT" > "$BL_LAUNCH_DIR/agent/cdp-port"
     [ "$steam_x64" = 1 ] || "${_bl_compat_env[@]}" droiddeck-steam-compat "$steam_root" 2>&1 &
     _bl_ui=(-gamepadui)
     [ "${BL_STEAM_UI:-}" = desktop ] && _bl_ui=()
     _bl_cef=(-cef-force-gpu -cef-use-gl=angle -cef-use-angle=vulkan)
     [ "${steam_cef_gpu:-1}" = 1 ] || _bl_cef=(-cef-disable-gpu)
-    if [ "${BL_DESKTOP:-}" = 1 ] && [ "${BL_STEAM_UI:-}" = desktop ]; then
-      _bl_cef=(-cef-disable-gpu)
-      _bl_ui=(-nobigpicture)
-    fi
     if [ "${BL_STEAM_UI:-}" != desktop ]; then
       if [ "$steam_x64" = 0 ] || [ "${BL_X64_DECK:-1}" != 0 ]; then
         _bl_ui+=(-steamdeck -steamos3)
@@ -1096,7 +1035,7 @@ BUSCONF
         echo "== steam: client branch on disk was '$(cat "$steam_beta" 2>/dev/null)', set to '$steam_channel' to match -clientbeta"
         echo "$steam_channel" > "$steam_beta"
       fi
-      if [ -z "${_bl_counted:-}" ] && [ -z "${BL_DESKTOP:-}" ]; then
+      if [ -z "${_bl_counted:-}" ]; then
         echo start >> "$steam_root/package/droiddeck-unconfirmed"
         _bl_counted=1
       fi
@@ -1195,21 +1134,7 @@ BUSCONF
       kill "$games_watcher" 2>/dev/null || true
       wait "$games_watcher" 2>/dev/null || true
     fi
-    if [ -n "${BL_DESKTOP:-}" ]; then
-      if [ -n "${decky_supervisor:-}" ]; then
-        kill "$decky_supervisor" 2>/dev/null || true
-        wait "$decky_supervisor" 2>/dev/null || true
-        echo "== Decky: session supervisor stopped"
-      fi
-      _bl_jobs=$(jobs -p)
-      [ -n "$_bl_jobs" ] && kill $_bl_jobs 2>/dev/null
-      echo "== steam: the client on the desktop has exited"
-    else
-      if [ -n "${decky_supervisor:-}" ]; then
-        kill "$decky_supervisor" 2>/dev/null || true
-        wait "$decky_supervisor" 2>/dev/null || true
-        echo "== Decky: session supervisor stopped"
-      fi
+    if :; then
       _bl_jobs=$(jobs -p)
       [ -n "$_bl_jobs" ] && kill $_bl_jobs 2>/dev/null
       reap_orphans

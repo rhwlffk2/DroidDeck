@@ -98,13 +98,12 @@ internal fun SideRail(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.width(if (iconOnly) 64.dp else 92.dp).background(colors.surface).padding(vertical = if (compact) 8.dp else 12.dp),
     ) {
-        val count = 6 + (if (s.isHomeApp) 1 else 0)
+        val count = 5 + (if (s.isHomeApp) 1 else 0)
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
         val fit = (maxHeight / count - 4.dp).coerceIn(44.dp, if (iconOnly) 48.dp else if (compact) 52.dp else 60.dp)
         val shown = Hops.railPreview ?: selected
         val keys = buildList {
             add("steam"); add("games")
-            add("desktop")
             add("components")
             if (s.isHomeApp) add("android-apps")
             add("setup")
@@ -127,7 +126,6 @@ internal fun SideRail(
             }
             RailItem(stringResource(R.string.rail_steam), Icons.Outlined.SportsEsports, "steam", shown == "steam", compact, iconOnly, fit, place = place, onFocus = { onFocusSelect("steam") }) { onSelect("steam") }
             RailItem(stringResource(R.string.rail_games), Icons.Outlined.VideoLibrary, "games", shown == "games", compact, iconOnly, fit, place = place, onFocus = { onFocusSelect("games") }) { onSelect("games") }
-            RailItem(stringResource(R.string.rail_desktop), Icons.Outlined.DesktopWindows, "desktop", shown == "desktop", compact, iconOnly, fit, place = place, onFocus = { onFocusSelect("desktop") }) { onSelect("desktop") }
             RailItem(stringResource(R.string.rail_components), Icons.Outlined.Layers, "components", shown == "components", compact, iconOnly, fit, place = place, onFocus = { onFocusSelect("components") }) { onSelect("components") }
             if (s.isHomeApp) RailItem(stringResource(R.string.rail_apps), Icons.Outlined.Apps, "android-apps", shown == "android-apps", compact, iconOnly, fit, place = place, onFocus = { onFocusSelect("android-apps") }) { onSelect("android-apps") }
             RailItem(stringResource(R.string.rail_setup), Icons.Outlined.Tune, "setup", shown == "setup", compact, iconOnly, fit, badge = setupNeedsAttention, place = place, onFocus = { onFocusSelect("setup") }) { onSelect("setup") }

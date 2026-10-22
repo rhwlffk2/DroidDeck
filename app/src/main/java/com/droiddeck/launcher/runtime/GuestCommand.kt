@@ -41,9 +41,8 @@ object GuestCommand {
         cmd += listOf(
             "/usr/bin/env", "-i", "HOME=/root", "USER=root", "LANG=C.UTF-8",
             "PATH=/usr/local/bin:/usr/bin:/bin", "XDG_RUNTIME_DIR=${LinuxRuntime.GUEST_RUNTIME_DIR}",
-            "XDG_DATA_HOME=/root/.local/share", "FLATPAK_BWRAP=${FlatpakManager.BWRAP}",
-            "DROIDDECK_BWRAP_SOCKET=${BwrapSpawner.socket(context)}",
-            "XDG_DATA_DIRS=/root/.local/share/flatpak/exports/share:/usr/local/share:/usr/share",
+            "XDG_DATA_HOME=/root/.local/share",
+            "XDG_DATA_DIRS=/usr/local/share:/usr/share",
         )
         fastPathKey?.let { cmd += ProotFastPath.guestEnv(root, binds, it) }
         cmd += argv

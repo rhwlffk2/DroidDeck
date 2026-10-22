@@ -57,11 +57,4 @@ class LinuxFexTest {
         LinuxFex.writeArch(dir, null)
         assertFalse(File(dir, "arch").exists())
     }
-
-    @Test fun releasesFallBackToTheX86Image() {
-        assertEquals("App-aarch64.AppImage", UserApps.pickAsset(listOf("App-x86_64.AppImage", "App-aarch64.AppImage")))
-        assertEquals("App.AppImage", UserApps.pickAsset(listOf("App-x86_64.AppImage", "App.AppImage")))
-        assertEquals("App-x86_64.AppImage", UserApps.pickAsset(listOf("App-x86_64.AppImage", "App-armhf.AppImage", "notes.txt")))
-        assertNull(UserApps.pickAsset(listOf("App-armhf.AppImage", "App-i686.AppImage")))
-    }
 }

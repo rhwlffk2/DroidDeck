@@ -100,7 +100,7 @@ object DeviceReport {
         b.append("DroidDeck session report\n")
         b.append("========================\n")
         k("Written", SimpleDateFormat("yyyy-MM-dd HH:mm:ss zzz", Locale.US).format(Date()))
-        k("Session mode", when (mode) { SessionService.MODE_DESKTOP -> "desktop (KDE Plasma)"; SessionService.MODE_RUN -> "a program under gamescope"; else -> "Steam client (gamescope)" })
+        k("Session mode", if (mode == SessionService.MODE_RUN) "a program under gamescope" else "Steam client (gamescope)")
 
         h("App")
         runCatching {
@@ -190,7 +190,7 @@ object DeviceReport {
         k("peak_refresh_rate", runCatching { Settings.System.getString(context.contentResolver, "peak_refresh_rate") }.getOrNull() ?: "not set")
         k("refresh_rate_mode", runCatching { Settings.Secure.getString(context.contentResolver, "refresh_rate_mode") }.getOrNull() ?: "not set")
         val panelSize = com.droiddeck.launcher.session.SessionDisplay.panelSize(context)
-        for ((label, mode) in listOf("Resolution (Steam)" to SessionService.MODE_STEAM, "Resolution (Desktop)" to SessionService.MODE_DESKTOP)) {
+        for ((label, mode) in listOf("Resolution (Steam)" to SessionService.MODE_STEAM)) {
             val choice = SessionPrefs.resolutionChoice(context, mode, panelSize)
             val size = com.droiddeck.launcher.session.SessionDisplay.resolveChoice(panelSize, choice)
             k(label, "$choice (${size.first}x${size.second})")
@@ -224,7 +224,6 @@ object DeviceReport {
         h("Runtime")
         k("Installed version", LinuxRuntimeInstaller.installedVersion(context))
         k("Runtime ready", LinuxRuntime.isInstalled(context))
-        k("Desktop installed", DesktopCatalog.desktopInstalled(context))
         k("Interrupted installs", DesktopCatalog.interrupted(context).joinToString { "${it.id} ${it.version}" }.ifEmpty { "none" })
         val broken = runCatching { com.droiddeck.launcher.runtime.RuntimeHealth.brokenLibraryLinks(context) }.getOrDefault(emptyList())
         k("Broken library links", if (broken.isEmpty()) "none" else "${broken.size}: ${broken.take(8).joinToString()}")

@@ -21,7 +21,6 @@ object SessionPrefs {
     const val SUSPEND_NEVER = "never"
     private const val LEGACY_SUSPEND_DOWNLOADS = "downloads"
     private const val STEAM_DOWNLOADS_IN_BACKGROUND = "steamDownloadsInBackground"
-    private const val DECKY_ZIP_WARNING_SEEN = "deckyZipWarningSeen"
 
     const val CONTROLLER_DECK = "deck"
     const val CONTROLLER_XBOX360 = "xbox360"
@@ -412,13 +411,6 @@ object SessionPrefs {
         prefs(context).edit().putString("androidDriver", id).apply()
     }
 
-
-    fun romsDir(context: Context): String =
-        prefs(context).getString("romsDir", "") ?: ""
-
-    fun setRomsDir(context: Context, path: String) {
-        prefs(context).edit().putString("romsDir", path).apply()
-    }
 
     fun logsEnabled(context: Context): Boolean =
         prefs(context).getBoolean("logs", true)
@@ -865,10 +857,7 @@ object SessionPrefs {
 
     fun prefMode(mode: String): String = if (mode == SessionService.MODE_RUN) SessionService.MODE_STEAM else mode
 
-    fun displayMode(context: Context, mode: String, program: String?): String =
-        if (mode == SessionService.MODE_RUN && com.droiddeck.launcher.runtime.UserApps.launches(program) &&
-            resolutionChosen(context, SessionService.MODE_DESKTOP)) SessionService.MODE_DESKTOP
-        else prefMode(mode)
+    fun displayMode(context: Context, mode: String, program: String?): String = prefMode(mode)
 
     fun pipAutoEnter(context: Context): Boolean = prefs(context).getBoolean("pipAutoEnter", false)
 
@@ -912,12 +901,6 @@ object SessionPrefs {
             }
             putString(key, normalized)
         }.apply()
-    }
-
-    fun deckyZipWarningSeen(context: Context): Boolean = prefs(context).getBoolean(DECKY_ZIP_WARNING_SEEN, false)
-
-    fun setDeckyZipWarningSeen(context: Context) {
-        prefs(context).edit().putBoolean(DECKY_ZIP_WARNING_SEEN, true).apply()
     }
 
     fun steamDownloadsInBackground(context: Context): Boolean {

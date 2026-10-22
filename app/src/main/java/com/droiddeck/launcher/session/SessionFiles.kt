@@ -6,8 +6,6 @@ import android.os.Environment
 import android.util.Log
 import com.droiddeck.launcher.R
 import com.droiddeck.launcher.core.FileUtils
-import com.droiddeck.launcher.runtime.BwrapSpawner
-import com.droiddeck.launcher.runtime.DesktopCatalog
 import com.droiddeck.launcher.runtime.LegacyNames
 import com.droiddeck.launcher.runtime.LinuxRuntime
 import com.droiddeck.launcher.runtime.ProotFastPath
@@ -20,20 +18,8 @@ object SessionFiles {
     private const val STAGED_LEDGER = "usr/local/.droiddeck-staged"
     val DIRECTAUDIO_SETS = arrayOf("linux-wine11", "linux-wine11-systhread")
 
-    internal val DESKTOP_FILES = arrayOf(
-        "usr/local/bin/droiddeck-desktop" to "usr/local/bin/droiddeck-desktop",
-        "usr/local/bin/droiddeck-gpu" to "usr/local/bin/droiddeck-gpu",
-        "usr/local/bin/droiddeck-desktop-gpu" to "usr/local/bin/droiddeck-desktop-gpu",
-        "usr/local/bin/droiddeck-desktop-window-rules" to "usr/local/bin/droiddeck-desktop-window-rules",
-        "usr/local/bin/kwin_wayland_wrapper" to "usr/local/bin/kwin_wayland_wrapper",
-        "usr/lib/firefox/defaults/pref/droiddeck.js" to "usr/lib/firefox/defaults/pref/droiddeck.js",
-        "etc/xdg/autostart/droiddeck-clipboard.desktop" to "etc/xdg/autostart/droiddeck-clipboard.desktop",
-    )
-
     /** Puts the session's files in place; [startsSession] is true only for the call that starts the Steam session. */
     fun stage(context: Context, root: File, startsSession: Boolean = false) {
-        if (DesktopCatalog.desktopInstalled(root)) try { DesktopCatalog.cleanLegacy(context) }
-        catch (e: Exception) { Log.w(TAG, "LXQt cleanup will retry next session", e) }
         GameEnvironmentStore.publish(context)
         WinComponents.publish(context)
         val files = arrayOf(
@@ -53,7 +39,6 @@ object SessionFiles {
             "usr/local/bin/droiddeck-agent" to "usr/local/bin/droiddeck-agent",
             "usr/local/bin/steam-compatibility" to "usr/local/bin/steam-compatibility",
             "usr/local/bin/droiddeck-clipboard" to "usr/local/bin/droiddeck-clipboard",
-            "usr/local/bin/droiddeck-desktop-clipboard" to "usr/local/bin/droiddeck-desktop-clipboard",
             "usr/local/bin/droiddeck-gpu-window" to "usr/local/bin/droiddeck-gpu-window",
             "usr/local/bin/droiddeck-steam-install" to "usr/local/bin/droiddeck-steam-install",
             "usr/local/bin/droiddeck-steam-ui-scale" to "usr/local/bin/droiddeck-steam-ui-scale",
@@ -66,24 +51,14 @@ object SessionFiles {
             "usr/local/bin/droiddeck-netmanager" to "usr/local/bin/droiddeck-netmanager",
             "usr/local/bin/droiddeck-login1" to "usr/local/bin/droiddeck-login1",
             "usr/local/bin/droiddeck-steam-launch" to "usr/local/bin/droiddeck-steam-launch",
-            "usr/local/bin/droiddeck-desktop-games" to "usr/local/bin/droiddeck-desktop-games",
-            "usr/local/bin/droiddeck-desktop-bookmarks" to "usr/local/bin/droiddeck-desktop-bookmarks",
             "usr/local/bin/droiddeck-steam-shim" to "usr/local/bin/droiddeck-steam-shim",
             "usr/local/bin/droiddeck-steam-shortcuts" to "usr/local/bin/droiddeck-steam-shortcuts",
             "usr/local/bin/droiddeck-open-url" to "usr/local/bin/droiddeck-open-url",
             "usr/local/bin/droiddeck-steam-games" to "usr/local/bin/droiddeck-steam-games",
-            "usr/local/bin/droiddeck-pad-defaults" to "usr/local/bin/droiddeck-pad-defaults",
             "usr/local/bin/droiddeck-steam-x64" to "usr/local/bin/droiddeck-steam-x64",
             "usr/local/bin/droiddeck-x64-arm-proton" to "usr/local/bin/droiddeck-x64-arm-proton",
             "usr/local/bin/droiddeck-x64-arm-webhelper" to "usr/local/bin/droiddeck-x64-arm-webhelper",
             "usr/local/bin/droiddeck-x64-webhelper" to "usr/local/bin/droiddeck-x64-webhelper",
-            "usr/local/bin/droiddeck-bwrap" to "usr/local/bin/droiddeck-bwrap",
-            "usr/local/bin/droiddeck-flatpak" to "usr/local/bin/droiddeck-flatpak",
-            "usr/local/bin/droiddeck-flatpak-setup" to "usr/local/bin/droiddeck-flatpak-setup",
-            "usr/local/bin/droiddeck-flatpak-run" to "usr/local/bin/droiddeck-flatpak-run",
-            "usr/local/bin/droiddeck-appimage-run" to "usr/local/bin/droiddeck-appimage-run",
-            "usr/local/bin/droiddeck-script-run" to "usr/local/bin/droiddeck-script-run",
-            "usr/local/bin/droiddeck-open" to "usr/local/bin/droiddeck-open",
             "usr/local/bin/droiddeck-proton-run" to "usr/local/bin/droiddeck-proton-run",
             "usr/bin/steamos-update" to "usr/bin/steamos-update",
             "usr/bin/steamos-select-branch" to "usr/bin/steamos-select-branch",
@@ -110,7 +85,7 @@ object SessionFiles {
             val dir = asset.substringBeforeLast('/')
             runCatching { context.assets.list("linuxfs/$dir")?.contains(asset.substringAfterLast('/')) == true }.getOrDefault(false)
         }
-        val all = (if (DesktopCatalog.desktopInstalled(root)) files + DESKTOP_FILES else files) + optional
+        val all = files + optional
         val ledger = StageLedger(File(root, STAGED_LEDGER), apkIdentity(context))
         for ((asset, relative) in all) {
             val target = File(root, relative)
@@ -177,13 +152,6 @@ object SessionFiles {
         }
         if (!FileUtils.writeString(File(etc, "steam-compatibility-label"), context.getString(R.string.steam_compat_label))) {
             Log.e(TAG, "could not write steam-compatibility-label")
-        }
-        val droiddeckEtc = File(etc, "droiddeck").apply { mkdirs() }
-        val stagedSocket = File(droiddeckEtc, "bwrap-socket.staged")
-        if (!FileUtils.writeString(stagedSocket, BwrapSpawner.socket(context) + "\n")
-            || !stagedSocket.renameTo(File(droiddeckEtc, "bwrap-socket"))) {
-            stagedSocket.delete()
-            Log.e(TAG, "could not write bwrap-socket")
         }
 
         BootMovie.syncFromSteam(context)

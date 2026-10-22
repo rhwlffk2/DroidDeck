@@ -64,9 +64,6 @@ def prNumber = (providers.environmentVariable('DROIDDECK_PR_NUMBER').getOrNull()
 def ciBuild = providers.environmentVariable('GITHUB_ACTIONS').getOrNull() == 'true'
 def releaseSigner = rootProject.file('keystore/release-signer.sha256').text.trim()
 def commitTime = (gitValue(['show', '-s', '--format=%ct', 'HEAD']) ?: '0').with { it.isLong() ? it : '0' }
-def desktopKde = rootProject.file('tools/desktop-kde/release.env').readLines()
-    .findAll { it.contains('=') && !it.startsWith('#') }
-    .collectEntries { def kv = it.split('=', 2); [(kv[0].trim()): kv[1].trim()] }
 def addonPacks = ['proot', 'directaudio'].collectEntries { name ->
     def pack = file("build/packs/${name}.tar.zst")
     if (!pack.isFile()) {
@@ -80,13 +77,6 @@ def addonPacks = ['proot', 'directaudio'].collectEntries { name ->
         while ((n = input.read(buffer)) > 0) digest.update(buffer, 0, n)
     }
     [(name): [sha256: digest.digest().encodeHex().toString(), size: pack.length()]]
-}
-def desktopRemovalSources = new groovy.json.JsonSlurper().parse(file('src/main/assets/desktop-removal/sources.json'))
-if (desktopRemovalSources.archives[desktopKde.DESKTOP_KDE_TAG] != desktopKde.DESKTOP_KDE_SHA256) {
-    throw new GradleException('Desktop removal inventories do not match the pinned archive')
-}
-if (!file('src/main/assets/desktop-removal/versions.txt').readLines().contains(desktopKde.DESKTOP_KDE_TAG)) {
-    throw new GradleException('Regenerate desktop removal inventories for ' + desktopKde.DESKTOP_KDE_TAG)
 }
 def variantSuffixes = rootProject.file('tools/release/variants.txt').readLines()
     .findAll { it.trim() && !it.startsWith('#') }
@@ -112,10 +102,6 @@ android {
         buildConfigField "long", "COMMIT_TIME", "${commitTime}L * 1000L"
         buildConfigField "String", "VARIANT_SUFFIXES", "\"${variantSuffixes}\""
         buildConfigField "String", "SGDB_API_KEY", "\"${System.getenv("SGDB_API_KEY") ?: project.findProperty("sgdbApiKey") ?: ""}\""
-        buildConfigField "String", "DESKTOP_KDE_TAG", "\"${desktopKde.DESKTOP_KDE_TAG}\""
-        buildConfigField "String", "DESKTOP_KDE_URL", "\"https://github.com/${desktopKde.DESKTOP_KDE_REPO}/releases/download/${desktopKde.DESKTOP_KDE_TAG}/desktop-kde.tar.zst\""
-        buildConfigField "String", "DESKTOP_KDE_SHA256", "\"${desktopKde.DESKTOP_KDE_SHA256}\""
-        buildConfigField "long", "DESKTOP_KDE_SIZE", "${desktopKde.DESKTOP_KDE_SIZE}L"
         addonPacks.each { name, pack ->
             buildConfigField "String", "PACK_${name.toUpperCase()}_SHA256", "\"${pack.sha256}\""
             buildConfigField "long", "PACK_${name.toUpperCase()}_SIZE", "${pack.size}L"

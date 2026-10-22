@@ -1,9 +1,7 @@
 package com.droiddeck.launcher.runtime
 
-import com.droiddeck.launcher.BuildConfig
 import java.io.File
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -15,31 +13,11 @@ import org.robolectric.RobolectricTestRunner
 class DesktopCatalogTest {
     @get:Rule val temporary = TemporaryFolder()
 
-    @Test fun desktopNeedsTheCompleteCurrentPinnedPackage() {
-        val root = temporary.root
-        val kwin = File(root, "usr/bin/kwin_wayland").apply {
-            parentFile.mkdirs()
-            writeText("fixture")
-        }
-        val marker = File(root, ".droiddeck-pkg-${DesktopCatalog.DESKTOP_ID}")
-        assertFalse(DesktopCatalog.desktopInstalled(root))
-        marker.writeText("older-package")
-        assertFalse(DesktopCatalog.desktopInstalled(root))
-        marker.writeText("${BuildConfig.DESKTOP_KDE_TAG}\n")
-        assertTrue(DesktopCatalog.desktopInstalled(root))
-        val pending = File(root, DesktopRemoval.PENDING).apply { writeText(BuildConfig.DESKTOP_KDE_TAG) }
-        assertFalse(DesktopCatalog.desktopInstalled(root))
-        pending.delete()
-        assertTrue(DesktopCatalog.desktopInstalled(root))
-        kwin.delete()
-        assertFalse(DesktopCatalog.desktopInstalled(root))
-    }
-
     @Test fun anInterruptedInstallIsFoundAgainWithEverythingNeededToFinishIt() {
         val root = temporary.root
         val entry = DesktopCatalog.Entry(
-            DesktopCatalog.DESKTOP_ID, "Desktop", 1, "desktop-kde-r2", "tar",
-            "https://example.invalid/desktop-kde.tar.zst", "a".repeat(64), 846933224L, "", "", "",
+            DesktopCatalog.PROTON_SEED_ID, "Proton", 1, "proton-arm64-r2", "tar",
+            "https://example.invalid/proton-arm64.tar.zst", "a".repeat(64), 846933224L, "", "", "",
         )
         assertTrue(DesktopCatalog.interrupted(root).isEmpty())
         File(root, ".droiddeck-pkg-${entry.id}.installing").writeText(DesktopCatalog.entryJson(entry).toString())

@@ -471,11 +471,9 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
             intent.removeExtra(EXTRA_REPAIR_RUNTIME)
             val needRuntime = repair || com.droiddeck.launcher.runtime.LinuxRuntimeInstaller.installedVersion(this) == null
             val needResume = !needRuntime && com.droiddeck.launcher.runtime.DesktopCatalog.interrupted(this).isNotEmpty()
-            val needDesktop = intent.getStringExtra(SessionService.EXTRA_MODE) == SessionService.MODE_DESKTOP &&
-                (repair || !com.droiddeck.launcher.runtime.DesktopCatalog.desktopInstalled(this))
             val needProton = (intent.getStringExtra(SessionService.EXTRA_MODE) ?: SessionService.MODE_STEAM) == SessionService.MODE_STEAM &&
                 com.droiddeck.launcher.runtime.DesktopCatalog.protonSeedNeeded(this)
-            if (needRuntime || needResume || needDesktop || needProton) installThenStart(needRuntime, needDesktop, needProton, needResume)
+            if (needRuntime || needResume || needProton) installThenStart(needRuntime, needProton, needResume)
         }
         hud = PerfHud(this)
         hud.onPresentingWindowChanged = {
@@ -1130,14 +1128,12 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
         else intent.getStringExtra(SessionService.EXTRA_MODE) ?: SessionService.MODE_STEAM
 
     private fun pausedTitle(): String = when (SessionState.mode) {
-        SessionService.MODE_DESKTOP -> getString(R.string.session_desktop_paused)
         SessionService.MODE_RUN -> com.droiddeck.launcher.frontend.Library.nameForProgram(SessionState.program)
             ?.let { getString(R.string.session_named_paused, it) } ?: getString(R.string.session_program_paused)
         else -> getString(R.string.load_steam_paused)
     }
 
     private fun loadingTitle(): String = when (loadingMode()) {
-        SessionService.MODE_DESKTOP -> getString(R.string.session_starting_desktop)
         SessionService.MODE_RUN -> {
             val program = if (SessionState.running) SessionState.program else intent.getStringExtra(SessionService.EXTRA_PROGRAM)
             com.droiddeck.launcher.frontend.Library.nameForProgram(program)?.let { getString(R.string.session_starting_named, it) }
@@ -1212,16 +1208,16 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
     @Volatile private var installingRuntime = false
     private var repairOffered by mutableStateOf(false)
 
-    private fun installThenStart(runtime: Boolean, desktop: Boolean, proton: Boolean = false, resume: Boolean = false) {
+    private fun installThenStart(runtime: Boolean, proton: Boolean = false, resume: Boolean = false) {
         if (SessionState.stopRequested) return
         installingRuntime = true
-        SessionState.installing = if (runtime) "runtime" else if (resume) "package" else if (desktop) "desktop" else "proton"
+        SessionState.installing = if (runtime) "runtime" else if (resume) "package" else "proton"
         SessionEvents.transition(
             SessionPhase.INSTALLING_RUNTIME,
             "${SessionState.installing}.installing",
             mapOf("component" to SessionState.installing),
         )
-        val first = if (runtime || resume) RUNTIME_LINES else if (desktop) DESKTOP_LINES else PROTON_LINES
+        val first = if (runtime || resume) RUNTIME_LINES else PROTON_LINES
         loading.say(getString(first.downloading), first.topic, readable = true)
         loading.percent = -1
         Thread({
@@ -1237,12 +1233,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
                 problem = com.droiddeck.launcher.runtime.DesktopCatalog.resumeInterrupted(this, progressAsIs())
                     ?.let { getString(R.string.session_package_resume_failed, it) }
                 if (problem == null) SessionEvents.record("package.ready") else failedComponent = "package"
-            }
-            if (problem == null && desktop && !SessionState.stopRequested) {
-                SessionState.installing = "desktop"
-                SessionEvents.transition(SessionPhase.INSTALLING_RUNTIME, "desktop.installing", mapOf("component" to "desktop"))
-                problem = installDesktop()
-                if (problem == null) SessionEvents.record("desktop.ready") else failedComponent = "desktop"
             }
             if (problem == null && proton && !SessionState.stopRequested) {
                 SessionState.installing = "proton"
@@ -1264,8 +1254,7 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
                 if (problem != null) {
                     val code = when (failedComponent) {
                         "runtime" -> "RUNTIME_INSTALL_FAILED"
-                        "package" -> "PACKAGE_RESUME_FAILED"
-                        else -> "DESKTOP_INSTALL_FAILED"
+                        else -> "PACKAGE_RESUME_FAILED"
                     }
                     SessionEvents.fail(code, problem)
                     collectStartArtifacts("session start failed")
@@ -1328,14 +1317,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
         val ok = com.droiddeck.launcher.runtime.LinuxRuntimeInstaller.install(this, release,
             progressFor(RUNTIME_LINES, release.size / 1_000_000))
         return if (ok) null else getString(R.string.session_runtime_install_failed)
-    }
-
-    private fun installDesktop(): String? {
-        uiHandler.post { loading.percent = -1; loading.say(getString(DESKTOP_LINES.downloading), DESKTOP_LINES.topic, readable = true) }
-        val entry = com.droiddeck.launcher.runtime.DesktopCatalog.desktopEntry(this)
-        val problem = com.droiddeck.launcher.runtime.DesktopCatalog.install(this, entry,
-            progressFor(DESKTOP_LINES, entry.size / 1_000_000))
-        return problem?.let { getString(R.string.session_desktop_install_failed, it) }
     }
 
     private fun installProton(): String? {
@@ -1521,11 +1502,7 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
     private fun outputSize(): Pair<Int, Int> {
         val mode = displayMode()
         val panel = com.droiddeck.launcher.session.SessionDisplay.panelSize(this)
-        val program = intent.getStringExtra(SessionService.EXTRA_PROGRAM)
-        val choice = if (intent.getStringExtra(SessionService.EXTRA_MODE) == SessionService.MODE_RUN &&
-            Library.drawsAtPanel(program) && !SessionPrefs.resolutionChosen(this, mode))
-            com.droiddeck.launcher.session.SessionDisplay.MATCH_SCREEN
-        else SessionPrefs.resolutionChoice(this, mode, panel)
+        val choice = SessionPrefs.resolutionChoice(this, mode, panel)
         return com.droiddeck.launcher.session.SessionDisplay.resolveChoice(panel, choice)
     }
 
@@ -1629,7 +1606,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
         val stopped = when (SessionState.mode) {
             SessionService.MODE_RUN -> com.droiddeck.launcher.frontend.Library.nameForProgram(SessionState.program)
                 ?.let { getString(R.string.session_ended_named, it) } ?: getString(R.string.session_ended_program)
-            SessionService.MODE_DESKTOP -> getString(R.string.session_ended_desktop)
             else -> getString(R.string.session_ended_named, "Steam")
         }
         repairOffered = hint?.repair == true
@@ -2494,10 +2470,8 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
             SessionPrefs.OSC_ALWAYS -> true
             SessionPrefs.OSC_STEAM_QAM -> true
             SessionPrefs.OSC_NEVER -> false
-            SessionPrefs.OSC_STEAM_TOUCH -> SessionState.mode == SessionService.MODE_STEAM ||
-                (!PadBridge.anyControllerConnected() && SessionState.mode != SessionService.MODE_DESKTOP)
-            else -> !PadBridge.anyControllerConnected() &&
-                SessionState.mode != SessionService.MODE_DESKTOP
+            SessionPrefs.OSC_STEAM_TOUCH -> SessionState.mode == SessionService.MODE_STEAM || !PadBridge.anyControllerConnected()
+            else -> !PadBridge.anyControllerConnected()
         }
         onScreenButtonsVisible = show
         val drawn = show && !keyboardCoversPad()
@@ -2887,11 +2861,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
             R.string.session_runtime_downloading, R.string.session_runtime_downloading_mb,
             R.string.session_runtime_checking, R.string.session_runtime_unpacking,
             LoadingState.Topic.RUNTIME, checkingReadable = true,
-        )
-        private val DESKTOP_LINES = PackageLines(
-            R.string.session_desktop_downloading, R.string.session_desktop_downloading_mb,
-            R.string.session_desktop_checking, R.string.session_desktop_unpacking,
-            LoadingState.Topic.DESKTOP, checkingReadable = false,
         )
         private val PROTON_LINES = PackageLines(
             R.string.session_proton_downloading, R.string.session_proton_downloading_mb,

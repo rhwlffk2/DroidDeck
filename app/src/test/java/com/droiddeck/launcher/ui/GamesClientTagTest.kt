@@ -50,14 +50,14 @@ class GamesClientTagTest {
                     FocusGlideHost {
                         GamesPage(FrontEndState(
                             installed = "r9", ready = true, available = null, busy = false, stage = "", percent = -1,
-                            desktopInstalled = true, offlineAccount = null, offline = false, frameGenLabel = "",
-                            romsDir = null, logsEnabled = false, steamGames = games, steamGamesX64 = x64, emulators = emptyList(), running = null,
+                            offlineAccount = null, offline = false, frameGenLabel = "",
+                            logsEnabled = false, steamGames = games, steamGamesX64 = x64, running = null,
                         ), FrontEndActions(
-                            onPlay = {}, onPlayDesktopUi = {}, onSteamGame = {}, onDesktop = {}, onEmulator = {},
-                            onRom = {}, onResume = {}, onSteamSettings = {}, onDesktopSettings = {},
-                            onInstallPackage = {}, onRemovePackage = {}, onRuntime = {}, onFrameGenPick = {},
+                            onPlay = {}, onPlayDesktopUi = {}, onSteamGame = {},
+                            onResume = {}, onSteamSettings = {},
+                            onRuntime = {}, onFrameGenPick = {},
                             onProtons = {}, onComponents = {}, onPerformance = {},
-                            onRoms = {}, onFiles = {}, onLogs = {}, onOffline = {},
+                            onFiles = {}, onLogs = {}, onOffline = {},
                         ), selected = "app:440", onSelect = {}, modifier = Modifier.fillMaxSize())
                     }
                 }
