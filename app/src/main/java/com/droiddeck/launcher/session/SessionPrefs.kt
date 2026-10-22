@@ -751,12 +751,6 @@ object SessionPrefs {
         prefs(context).edit().putString(CARDBOARD_KEY, cardboard.encode().toString()).apply()
     }
 
-    fun cardboardSourceBeforeSteamVr(context: Context): Int = prefs(context).getInt("cardboardSourceBeforeSteamVr", -1)
-
-    fun setCardboardSourceBeforeSteamVr(context: Context, source: Int) {
-        prefs(context).edit().putInt("cardboardSourceBeforeSteamVr", source).apply()
-    }
-
     fun sessionPrefs(context: Context): android.content.SharedPreferences = prefs(context)
 
     val textureAnisotropyChoices = TextureFiltering.ANISOTROPY.map { it to if (it == 0) "Off" else "${it}x" }

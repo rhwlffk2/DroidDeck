@@ -29,6 +29,9 @@ class RuntimeInputsTest(unittest.TestCase):
         self.source.parent.mkdir(parents=True)
         self.source.write_text('current source')
         self.audio(['pactl', 'modules/arm64/module-aaudio-sink.so', 'modules/arm64/module-directaudio-native-sink.so'])
+        audio_driver = self.root / 'app/src/main/assets/directaudio/linux-wine11/version.txt'
+        audio_driver.parent.mkdir(parents=True, exist_ok=True)
+        audio_driver.write_bytes(b'prepared runtime')
         self.packs()
 
     def pack(self, name, files):
@@ -43,7 +46,6 @@ class RuntimeInputsTest(unittest.TestCase):
         path.write_bytes(subprocess.run(['zstd', '-q', '-c'], input=stream.getvalue(), capture_output=True, check=True).stdout)
 
     def packs(self):
-        self.pack('tracking', {library.rsplit('/', 1)[1]: b'library' for library in runtime.PACKED_LIBRARIES})
         proot = {}
         for name, (pack, rel) in runtime.PACKED_FILES.items():
             proot[rel] = (self.root / runtime.outputs(self.root)[name]).read_bytes()
@@ -142,25 +144,20 @@ class RuntimeInputsTest(unittest.TestCase):
         return path
 
     def test_an_apk_still_carrying_a_packed_tree_is_rejected(self):
-        apk = self.current_apk(self.root / 'bundled.apk', {'assets/linuxfs/usr/local/lib/droiddeck-xbox/xodus-cli': b'prepared runtime'})
-        with self.assertRaisesRegex(ValueError, 'xbox pack provides'):
-            runtime.check_apk(apk, self.root)
-
-    def test_an_apk_still_carrying_tracking_libraries_is_rejected(self):
-        apk = self.current_apk(self.root / 'bundled.apk', {runtime.PACKED_LIBRARIES[0]: b'library'})
-        with self.assertRaisesRegex(ValueError, 'tracking pack provides'):
+        apk = self.current_apk(self.root / 'bundled.apk', {'assets/directaudio/linux-wine11/version.txt': b'prepared runtime'})
+        with self.assertRaisesRegex(ValueError, 'directaudio pack provides'):
             runtime.check_apk(apk, self.root)
 
     def test_a_stale_pack_is_rejected(self):
         apk = self.current_apk(self.root / 'current.apk')
-        self.pack('comet', {'comet': b'old build', 'version': b'old'})
-        with self.assertRaisesRegex(ValueError, 'comet is missing or has a stale'):
+        self.pack('directaudio', {'linux-wine11/version.txt': b'old build'})
+        with self.assertRaisesRegex(ValueError, 'directaudio is missing or has a stale'):
             runtime.check_apk(apk, self.root)
 
     def test_a_missing_pack_is_rejected(self):
         apk = self.current_apk(self.root / 'current.apk')
-        (self.root / runtime.PACKS / 'xbox.tar.zst').unlink()
-        with self.assertRaisesRegex(ValueError, 'Missing add-on pack xbox'):
+        (self.root / runtime.PACKS / 'directaudio.tar.zst').unlink()
+        with self.assertRaisesRegex(ValueError, 'Missing add-on pack directaudio'):
             runtime.check_apk(apk, self.root)
 
     def test_windows_manifest_matches_portable_apk_paths(self):

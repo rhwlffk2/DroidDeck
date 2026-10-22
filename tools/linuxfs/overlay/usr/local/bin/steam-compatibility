@@ -71,9 +71,6 @@ bl_store_launch() {
 }
 
 bl_run() {
-  if [ -x /usr/local/bin/droiddeck-steamvr-flat ] && /usr/local/bin/droiddeck-steamvr-flat "${verb:-}"; then
-    set -- /usr/local/bin/droiddeck-steamvr-game "$@"
-  fi
   exec "$@"
 }
 """
@@ -457,9 +454,6 @@ verb=$1; shift
 case $verb in
   getcompatpath | getnativepath) printf '%s\\n' "$1"; exit 0 ;;
 esac
-if [ -x /usr/local/bin/droiddeck-steamvr-flat ] && /usr/local/bin/droiddeck-steamvr-flat "$verb"; then
-  exec /usr/local/bin/droiddeck-steamvr-game /usr/local/bin/droiddeck-fex steam "$verb" "$@"
-fi
 exec /usr/local/bin/droiddeck-fex steam "$verb" "$@"
 """
 

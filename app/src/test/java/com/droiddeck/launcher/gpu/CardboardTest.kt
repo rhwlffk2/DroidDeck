@@ -51,36 +51,6 @@ class CardboardTest {
         assertEquals(0f, Cardboard.lensInset(150f, 0f), eps)
     }
 
-    @Test fun steamVrStatusFollowsTheAgentAnswer() {
-        fun answer(vararg pairs: Pair<String, Boolean>) = JSONObject().apply { pairs.forEach { put(it.first, it.second) } }
-        assertEquals(SteamVr.Status.UNAVAILABLE, SteamVr.parse(answer("ok" to false, "installed" to true, "driver" to true)))
-        assertEquals(SteamVr.Status.UNAVAILABLE, SteamVr.parse(answer("ok" to true, "installed" to true, "driver" to false)))
-        assertEquals(SteamVr.Status.NOT_INSTALLED, SteamVr.parse(answer("ok" to true, "driver" to true)))
-        assertEquals(SteamVr.Status.INSTALLING, SteamVr.parse(answer("ok" to true, "installing" to true)))
-        assertEquals(SteamVr.Status.READY, SteamVr.parse(answer("ok" to true, "installed" to true, "driver" to true)))
-        assertEquals(SteamVr.Status.RUNNING,
-            SteamVr.parse(answer("ok" to true, "installed" to true, "driver" to true, "running" to true)))
-        assertEquals(SteamVr.Status.UNAVAILABLE,
-            SteamVr.parse(answer("ok" to true, "installed" to true, "driver" to true).put("exitCode", 1)))
-    }
-
-    @Test fun steamVrActionsSucceedOnlyWhenTheHelperDid() {
-        fun answer(ok: Boolean, exitCode: Int? = null, started: Boolean? = null) = JSONObject().apply {
-            put("ok", ok)
-            exitCode?.let { put("exitCode", it) }
-            started?.let { put("started", it) }
-        }
-        assertTrue(SteamVr.succeeded("start", answer(true, exitCode = 0)))
-        assertTrue(SteamVr.succeeded("stop", answer(true, exitCode = 0)))
-        assertFalse(SteamVr.succeeded("start", answer(true, exitCode = 1)))
-        assertFalse(SteamVr.succeeded("stop", answer(true, exitCode = 2)))
-        assertFalse(SteamVr.succeeded("start", answer(true)))
-        assertFalse(SteamVr.succeeded("start", answer(false, exitCode = 0)))
-        assertTrue(SteamVr.succeeded("install", answer(true, started = true)))
-        assertFalse(SteamVr.succeeded("install", answer(true)))
-        assertFalse(SteamVr.succeeded("install", answer(false, started = true)))
-    }
-
     @Test fun quaternionMatchesKnownRotations() {
         val m = matrix(quat(0f, 0f, 1f, 90.0))
         assertVec(floatArrayOf(0f, 1f, 0f), HeadPose.apply(m, floatArrayOf(1f, 0f, 0f)))
@@ -106,18 +76,6 @@ class CardboardTest {
         assertEquals(0f, forward[0], eps)
         assertEquals(-sin(PI / 6).toFloat(), forward[1], eps)
         assertEquals(-cos(PI / 6).toFloat(), forward[2], eps)
-    }
-
-    @Test fun virtualScreenRecenterUsesTheCurrentHeightAndDirection() {
-        for (pitch in listOf(-30.0, -10.0, 15.0, 35.0)) {
-            val yaw = matrix(quat(0f, 0f, 1f, 50.0))
-            val tilt = HeadPose.multiply(matrix(quat(1f, 0f, 0f, pitch)), matrix(quat(0f, 0f, 1f, 12.0)))
-            val screen = HeadPose.multiply(HeadPose.multiply(yaw, HeadPose.fromGlasses(0f, 0f, 0f, 1f)), tilt)
-            val ref = HeadPose.recenter(screen, centerView = true)
-            assertVec(HeadPose.IDENTITY, HeadPose.relative(ref, screen))
-            val lookUp = matrix(quat(1f, 0f, 0f, 20.0))
-            assertVec(lookUp, HeadPose.relative(ref, HeadPose.multiply(screen, lookUp)))
-        }
     }
 
     @Test fun turningTheHeadTurnsTheView() {
@@ -166,34 +124,6 @@ class CardboardTest {
         val s270 = HeadPose.toScreen(r, 3)
         assertVec(HeadPose.apply(r, floatArrayOf(0f, 1f, 0f)), HeadPose.apply(s270, floatArrayOf(1f, 0f, 0f)))
         assertVec(r, HeadPose.toScreen(HeadPose.toScreen(HeadPose.toScreen(HeadPose.toScreen(r, 1), 1), 1), 1))
-    }
-
-    @Test fun glassesLevelAndAheadIsStraightAhead() {
-        val s2w = HeadPose.fromGlasses(0f, 0f, 0f, 1f)
-        assertVec(floatArrayOf(1f, 0f, 0f), HeadPose.apply(s2w, floatArrayOf(0f, 0f, -1f)))
-        assertVec(floatArrayOf(0f, 0f, 1f), HeadPose.apply(s2w, floatArrayOf(0f, 1f, 0f)))
-        assertVec(HeadPose.IDENTITY, HeadPose.relative(HeadPose.recenter(s2w), s2w))
-    }
-
-    @Test fun glassesTurnedLeftLookLeft() {
-        val ref = HeadPose.recenter(HeadPose.fromGlasses(0f, 0f, 0f, 1f))
-        val q = quat(0f, 0f, 1f, 30.0)
-        val view = HeadPose.relative(ref, HeadPose.fromGlasses(q[0], q[1], q[2], q[3]))
-        val s = sin(PI / 6).toFloat(); val c = cos(PI / 6).toFloat()
-        assertVec(floatArrayOf(-s, 0f, -c), HeadPose.apply(view, floatArrayOf(0f, 0f, -1f)))
-        assertVec(floatArrayOf(0f, 1f, 0f), HeadPose.apply(view, floatArrayOf(0f, 1f, 0f)))
-    }
-
-    @Test fun glassesRecenterKeepsTheHorizon() {
-        val q = quat(0f, 0f, 1f, 75.0)
-        val ref = HeadPose.recenter(HeadPose.fromGlasses(q[0], q[1], q[2], q[3]))
-        assertVec(HeadPose.IDENTITY, HeadPose.relative(ref, HeadPose.fromGlasses(q[0], q[1], q[2], q[3])))
-        val tilt = quat(0f, 1f, 0f, 20.0)
-        val both = HeadPose.multiply(HeadPose.fromQuaternion(q[0], q[1], q[2], q[3]), HeadPose.fromQuaternion(tilt[0], tilt[1], tilt[2], tilt[3]))
-        val view = HeadPose.multiply(HeadPose.transpose(ref.basis), HeadPose.multiply(both, floatArrayOf(0f, 0f, -1f, -1f, 0f, 0f, 0f, 1f, 0f)))
-        val ahead = HeadPose.apply(view, floatArrayOf(0f, 0f, -1f))
-        assertEquals(0f, ahead[0], eps)
-        assertEquals(-sin(PI / 9).toFloat(), ahead[1], eps)
     }
 
     @Test fun monoIsNotPartOfTheSavedSettings() {

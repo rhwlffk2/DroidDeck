@@ -12,23 +12,6 @@ if (localBuildOptionsFile.asFile.exists()) {
 }
 def pythonExecutable = project.findProperty('pythonExecutable')
     ?: localBuildOptions.getProperty('droiddeck.python', 'python3')
-def vitureSdkDir = project.hasProperty('vitureSdkDir') ? project.property('vitureSdkDir') : localBuildOptions.getProperty('droiddeck.vitureSdk', '')
-def uvcDir = project.hasProperty('uvcDir') ? project.property('uvcDir') : localBuildOptions.getProperty('droiddeck.uvcDir', '')
-if (uvcDir) {
-    ['arm64-v8a/libusb.so', 'arm64-v8a/libuvc.a', 'include/libusb.h', 'include/libuvc/libuvc.h',
-     'licenses/libusb-COPYING', 'licenses/libuvc-LICENSE.txt'].each { required ->
-        if (!new File(uvcDir, required).isFile()) throw new GradleException("Incomplete UVC build: missing ${required}")
-    }
-}
-if (vitureSdkDir) {
-    ['android/arm64-v8a/libglasses.so', 'android/arm64-v8a/libcarina_vio.so',
-     'android/arm64-v8a/libcloud_protocol.so', 'include/viture_glasses_provider.h',
-     'android/LICENSE', 'android/NOTICE'].each { required ->
-        if (!new File(vitureSdkDir, required).isFile()) {
-            throw new GradleException("Incomplete VITURE Android SDK: missing ${required}")
-        }
-    }
-}
 
 def gitValue = { List<String> arguments ->
     try {
@@ -84,10 +67,7 @@ def commitTime = (gitValue(['show', '-s', '--format=%ct', 'HEAD']) ?: '0').with 
 def desktopKde = rootProject.file('tools/desktop-kde/release.env').readLines()
     .findAll { it.contains('=') && !it.startsWith('#') }
     .collectEntries { def kv = it.split('=', 2); [(kv[0].trim()): kv[1].trim()] }
-def trackingPack = rootProject.file('tools/packs/tracking/release.env').readLines()
-    .findAll { it.contains('=') && !it.startsWith('#') }
-    .collectEntries { def kv = it.split('=', 2); [(kv[0].trim()): kv[1].trim()] }
-def addonPacks = ['proot', 'directaudio', 'tracking'].collectEntries { name ->
+def addonPacks = ['proot', 'directaudio'].collectEntries { name ->
     def pack = file("build/packs/${name}.tar.zst")
     if (!pack.isFile()) {
         if (ciBuild) throw new GradleException("Add-on pack ${pack} is missing: run tools/packs/build.sh app/build/packs")
@@ -147,8 +127,6 @@ android {
         externalNativeBuild {
             cmake {
                 arguments '-DANDROID_STL=c++_shared'
-                arguments "-DDROIDDECK_VITURE_SDK_DIR=${vitureSdkDir.toString().replace('\\', '/')}"
-                arguments "-DDROIDDECK_UVC_DIR=${uvcDir.toString().replace('\\', '/')}"
             }
         }
     }
@@ -205,8 +183,8 @@ android {
         jniLibs {
             useLegacyPackaging = true
             pickFirsts += ['**/libtermux.so']
-            // Shipped in the proot and tracking packs (tools/packs) and run or loaded from there.
-            excludes += ['**/libproot.so', '**/libproot-loader.so', '**/libopencv_java4.so', '**/libmediapipe_tasks_jni.so']
+            // Shipped in the proot pack (tools/packs) and run from there.
+            excludes += ['**/libproot.so', '**/libproot-loader.so']
         }
     }
 
@@ -236,16 +214,6 @@ android {
     }
 }
 
-// Vendor binaries remain in the user's SDK directory; never vendor them into Git.
-if (vitureSdkDir) {
-    android.sourceSets.main.jniLibs.srcDir(new File(vitureSdkDir, 'android'))
-    def stageVitureNotices = tasks.register('stageVitureNotices', Copy) {
-        from(new File(vitureSdkDir, 'android')) { include 'LICENSE', 'NOTICE' }
-        into(layout.buildDirectory.dir('vitureAssets/licenses/viture'))
-    }
-    tasks.named('preBuild').configure { dependsOn(stageVitureNotices) }
-}
-
 def stageSessionScripts = tasks.register('stageSessionScripts', Copy) {
     from(rootProject.file('tools/linuxfs/overlay')) {
         include 'usr/local/bin/droiddeck-*', 'usr/local/bin/steam-compatibility', 'usr/bin/**'
@@ -262,15 +230,6 @@ def stageRuntimeAssets = tasks.register('stageRuntimeAssets', Sync) {
     into(runtimeAssetsDir)
 }
 android.sourceSets.main.assets.setSrcDirs([runtimeAssetsDir])
-if (vitureSdkDir) android.sourceSets.main.assets.srcDir(layout.buildDirectory.dir('vitureAssets'))
-if (uvcDir) {
-    def stageUvcNotices = tasks.register('stageUvcNotices', Copy) {
-        from(new File(uvcDir, 'licenses'))
-        into(layout.buildDirectory.dir('uvcAssets/licenses/uvc'))
-    }
-    tasks.named('preBuild').configure { dependsOn(stageUvcNotices) }
-    android.sourceSets.main.assets.srcDir(layout.buildDirectory.dir('uvcAssets'))
-}
 tasks.named('preBuild').configure { dependsOn(stageRuntimeAssets) }
 
 def verifyRuntimeInputs = tasks.register('verifyRuntimeInputs', Exec) {
@@ -284,8 +243,6 @@ tasks.configureEach { task ->
 
 
 dependencies {
-    implementation "org.opencv:opencv:${trackingPack.OPENCV_VERSION}"
-    implementation 'org.khronos.openxr:openxr_loader_for_android:1.1.49'
     implementation 'com.github.luben:zstd-jni:1.5.7-4@aar'
     implementation 'org.apache.commons:commons-compress:1.27.1'
     implementation 'org.tukaani:xz:1.10'
@@ -300,9 +257,6 @@ dependencies {
     implementation 'com.caverock:androidsvg-aar:1.4'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     implementation 'com.termux.termux-app:terminal-view:0.118.0'
-    implementation("com.google.mediapipe:tasks-vision:${trackingPack.MEDIAPIPE_VERSION}") {
-        exclude group: 'com.google.auto.value', module: 'auto-value'
-    }
 
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.robolectric:robolectric:4.16.1'

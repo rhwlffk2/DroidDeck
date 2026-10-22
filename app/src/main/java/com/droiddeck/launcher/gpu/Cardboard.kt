@@ -31,8 +31,7 @@ data class Cardboard(
                       val lensSeparationMm: Float, val chroma: Float, val fallbackFovDeg: Float) {
         CARDBOARD_V2("cardboard2", 0.34f, 0.55f, 39.3f, 63.9f, 0.006f, 90f),
         CARDBOARD_V1("cardboard1", 0.441f, 0.156f, 42f, 60f, 0.004f, 80f),
-        NONE("none", 0f, 0f, 0f, 0f, 0f, 60f),
-        VITURE("viture", 0f, 0f, 0f, 0f, 0f, 23.3f);
+        NONE("none", 0f, 0f, 0f, 0f, 0f, 60f);
 
         companion object {
             fun byId(id: String): Viewer = entries.firstOrNull { it.id == id } ?: CARDBOARD_V2
@@ -127,10 +126,6 @@ object HeadPose {
         val r = i / 3; val c = i % 3
         a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c]
     }
-
-    private val GLASSES_AXES = floatArrayOf(0f, 0f, -1f, -1f, 0f, 0f, 0f, 1f, 0f)
-
-    fun fromGlasses(x: Float, y: Float, z: Float, w: Float): FloatArray = multiply(fromQuaternion(x, y, z, w), GLASSES_AXES)
 
     fun transpose(m: FloatArray): FloatArray = floatArrayOf(m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8])
 
