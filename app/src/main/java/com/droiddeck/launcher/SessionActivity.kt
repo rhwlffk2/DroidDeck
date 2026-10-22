@@ -75,7 +75,6 @@ import com.droiddeck.launcher.input.OnScreenControls
 import com.droiddeck.launcher.input.PadBridge
 import com.droiddeck.launcher.input.PadMouse
 import com.droiddeck.launcher.input.PadState
-import com.droiddeck.launcher.input.SteamControllerBle
 import com.droiddeck.launcher.input.DirectTouchHold
 import com.droiddeck.launcher.input.PointerGestures
 import com.droiddeck.launcher.input.SecondScreenDisplay
@@ -172,10 +171,9 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
     }
 
     private fun updatePadMotion() {
-        if (resumed && !pipUi && SessionState.deckPad && !SteamControllerBle.connected) padMotion?.start()
+        if (resumed && !pipUi && SessionState.deckPad) padMotion?.start()
         else padMotion?.stop()
     }
-    private var steamController: SteamControllerBle? = null
     private var onScreenControls: OnScreenControls? = null
     private var steamTouchControls: com.droiddeck.launcher.input.SteamTouchControls? = null
     private var steamTouchAvailable by mutableStateOf(false)
@@ -485,8 +483,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
             bridge.setExcluded(vr::owns)
             joyConVr = vr
         }
-        SteamControllerBle.listener = { uiHandler.post { updatePadMotion(); refreshControls() } }
-        steamController = SteamControllerBle(this).also { it.start() }
         padMotion = com.droiddeck.launcher.input.PadMotion(this) {
             @Suppress("DEPRECATION")
             (if (Build.VERSION.SDK_INT >= 30) display else windowManager.defaultDisplay)?.rotation ?: android.view.Surface.ROTATION_0
@@ -2460,7 +2456,7 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
         val width = sessionRoot.width
         val height = sessionRoot.height
         val wanted = unfoldedControls && com.droiddeck.launcher.session.SessionDisplay.foldable(this) &&
-            !PadBridge.anyControllerConnected() && !SteamControllerBle.connected &&
+            !PadBridge.anyControllerConnected() &&
             SessionState.mode == SessionService.MODE_STEAM && SessionState.deckPad &&
             !pipUi && !isInPictureInPictureMode && width > 0 && height > 0 &&
             resources.configuration.smallestScreenWidthDp >= com.droiddeck.launcher.session.SessionDisplay.UNFOLDED_MIN_DP
@@ -2774,7 +2770,7 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
             SessionPrefs.OSC_NEVER -> false
             SessionPrefs.OSC_STEAM_TOUCH -> SessionState.mode == SessionService.MODE_STEAM ||
                 (!PadBridge.anyControllerConnected() && SessionState.mode != SessionService.MODE_DESKTOP)
-            else -> !PadBridge.anyControllerConnected() && !SteamControllerBle.connected &&
+            else -> !PadBridge.anyControllerConnected() &&
                 SessionState.mode != SessionService.MODE_DESKTOP
         }
         onScreenButtonsVisible = show
@@ -3391,7 +3387,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
         handCamera?.stop()
         handCamera = null
         padBridge?.stop()
-        steamController?.stop()
         if (SessionState.padBridge === padBridge) SessionState.padBridge = null
         padMotion?.stop()
         if (SessionState.deckPadListener === deckPadListener) SessionState.deckPadListener = null

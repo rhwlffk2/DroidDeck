@@ -40,7 +40,6 @@ import com.droiddeck.launcher.core.FileUtils
 import com.droiddeck.launcher.core.HostProcess
 import com.droiddeck.launcher.frontend.GameLaunchLink
 import com.droiddeck.launcher.input.FakeInputWriter
-import com.droiddeck.launcher.input.SteamControllerBle
 import com.droiddeck.launcher.runtime.BwrapSpawner
 import com.droiddeck.launcher.runtime.LinuxNetworkLinkComponent
 import com.droiddeck.launcher.runtime.LinuxRuntime
@@ -726,7 +725,7 @@ class SessionService : Service() {
             SessionState.steamUi != "desktop" &&
             !File(Environment.getExternalStorageDirectory(), NO_DECK_PAD_SWITCH).exists()
         val wantsTouch = wantsDeck && !File(Environment.getExternalStorageDirectory(), NO_STEAM_TOUCH_SWITCH).exists()
-        val wantsTriton = wantsDeck && SteamControllerBle.hasPairedController(this)
+        val wantsTriton = false
         deckBinds = if (wantsDeck) SteamDeckPad.prepare(this, fakeInputDir.parentFile!!.parentFile!!, wantsTouch, wantsTriton,
             SessionPrefs.padType(SessionPrefs.steamController(this))) else emptyList()
         SessionState.deckPad = deckBinds.isNotEmpty()
