@@ -437,9 +437,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
             SessionState.steamVr = true
         }
         if (SessionState.steamVr) Glasses.prepareSteamVrStart()
-        if (intent.action == SessionService.ACTION_AGENT_START) {
-            SessionEvents.record("agent.start_requested", mapOf("mode" to SessionState.mode))
-        }
         com.droiddeck.launcher.gpu.SteamVrHealth.begin(this, SessionState.sessionId)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (!SessionState.running) {
@@ -2909,15 +2906,6 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback {
 
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
-        if (intent.action == SessionService.ACTION_AGENT_START) {
-            if (SessionState.running || SessionState.phase !in setOf(SessionPhase.IDLE, SessionPhase.FAILED)) {
-                Log.w(TAG, "ignoring agent start while session phase is ${SessionState.phase}")
-                return
-            }
-            setIntent(intent)
-            recreate()
-            return
-        }
         if (this.intent.getBooleanExtra(EXTRA_RETURN_HOME, false)) intent.putExtra(EXTRA_RETURN_HOME, true)
         setIntent(intent)
         if (intent.getBooleanExtra(EXTRA_STEAMVR, false) && SessionState.mode == SessionService.MODE_STEAM) {

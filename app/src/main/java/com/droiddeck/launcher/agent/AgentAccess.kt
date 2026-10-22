@@ -16,8 +16,6 @@ object AgentAccess {
 
     fun setCommandsEnabled(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_COMMANDS, enabled).apply()
-        if (!enabled) runCatching { AgentEnv.revoke(context) }
-            .onFailure { android.util.Log.w("AgentAccess", "Could not finish clearing debugging experiments") }
     }
 
     fun requireCommands(context: Context) {
