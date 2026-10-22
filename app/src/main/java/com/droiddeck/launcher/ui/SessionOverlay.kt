@@ -914,11 +914,6 @@ private fun ScreenEffectsGroup(
                 a.onEffects(picked.effects)
             }
         }
-        ToggleRow(host, "fxaa", stringResource(R.string.drawer_fxaa), null, e.fxaa, chipModifier = track("fxaa")) { a.onEffects(e.copy(fxaa = it)) }
-        ToggleRow(host, "toon", stringResource(R.string.drawer_toon), null, e.toon, chipModifier = track("toon")) { a.onEffects(e.copy(toon = it)) }
-        ToggleRow(host, "crt", stringResource(R.string.drawer_crt), null, e.crt, chipModifier = track("crt")) { a.onEffects(e.copy(crt = it)) }
-        ToggleRow(host, "ntsc", stringResource(R.string.drawer_ntsc), null, e.ntsc, chipModifier = track("ntsc")) { a.onEffects(e.copy(ntsc = it)) }
-        ToggleRow(host, "fake-hdr", stringResource(R.string.drawer_fake_hdr), null, e.hdr, chipModifier = track("fake-hdr")) { a.onEffects(e.copy(hdr = it)) }
     }
     val source = remember { MutableInteractionSource() }
     val hot = source.collectIsFocusedAsState().value || source.collectIsHoveredAsState().value
@@ -944,9 +939,6 @@ private fun ScreenEffectsGroup(
             ToggleRow(host, "cas", stringResource(R.string.drawer_cas), null, e.cas, chipModifier = track("cas")) { a.onEffects(e.copy(cas = it)) }
             if (e.cas) SliderRow(stringResource(R.string.drawer_cas_level), null, e.casLevel, 0..100, step = 5,
                 format = { "$it%" }, modifier = track("cas-level")) { a.onEffects(e.copy(casLevel = it)) }
-            ToggleRow(host, "deband", stringResource(R.string.drawer_deband), null, e.deband, chipModifier = track("deband")) { a.onEffects(e.copy(deband = it)) }
-            if (e.deband) SliderRow(stringResource(R.string.drawer_deband_strength), null, e.debandStrength, 0..200, step = 5,
-                format = { "$it%" }, modifier = track("deband-strength")) { a.onEffects(e.copy(debandStrength = it)) }
             SliderRow(stringResource(R.string.drawer_brightness), null, e.brightness, -100..100, step = 2,
                 format = ::signed, modifier = track("brightness")) { a.onEffects(e.copy(brightness = it)) }
             SliderRow(stringResource(R.string.drawer_contrast), null, e.contrast, -100..100, step = 2,

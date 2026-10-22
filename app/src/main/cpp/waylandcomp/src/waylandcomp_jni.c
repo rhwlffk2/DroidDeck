@@ -387,19 +387,9 @@ Java_com_droiddeck_launcher_wayland_WaylandCompositor_nativeSetCas(JNIEnv *env, 
 }
 
 JNIEXPORT void JNICALL
-Java_com_droiddeck_launcher_wayland_WaylandCompositor_nativeSetHdr(JNIEnv *env, jclass clazz, jboolean enabled) {
-    vkp_effects_set_hdr(enabled ? 1 : 0);
-}
-
-JNIEXPORT void JNICALL
-Java_com_droiddeck_launcher_wayland_WaylandCompositor_nativeSetDeband(JNIEnv *env, jclass clazz, jboolean enabled, jint strength) {
-    vkp_effects_set_deband(enabled ? 1 : 0, strength);
-}
-
-JNIEXPORT void JNICALL
 Java_com_droiddeck_launcher_wayland_WaylandCompositor_nativeSetScreenEffects(JNIEnv *env, jclass clazz, jfloat brightness,
-        jfloat contrast, jfloat gamma, jfloat saturation, jboolean fxaa, jboolean toon, jboolean crt, jboolean ntsc) {
-    vkp_effects_set_screen(brightness, contrast, gamma, saturation, fxaa ? 1 : 0, toon ? 1 : 0, crt ? 1 : 0, ntsc ? 1 : 0);
+        jfloat contrast, jfloat gamma, jfloat saturation) {
+    vkp_effects_set_screen(brightness, contrast, gamma, saturation);
 }
 
 JNIEXPORT void JNICALL

@@ -24,10 +24,7 @@ void vkp_effects_set_formats(VkFormat scene_fmt, VkFormat target_fmt);
 void vkp_effects_set_scaling(int mode);
 void vkp_effects_set_upscale_sharpness(int pct);
 void vkp_effects_set_cas(int enabled, int pct);
-void vkp_effects_set_hdr(int enabled);
-void vkp_effects_set_deband(int enabled, int pct);
-void vkp_effects_set_screen(float brightness, float contrast, float gamma, float saturation,
-                            int fxaa, int toon, int crt, int ntsc);
+void vkp_effects_set_screen(float brightness, float contrast, float gamma, float saturation);
 void vkp_effects_set_look(const char *name);
 
 #endif

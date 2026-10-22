@@ -15,12 +15,6 @@
 #include "fsr_rcas_frag.h"
 #include "cas_frag.h"
 #include "color_frag.h"
-#include "fxaa_frag.h"
-#include "toon_frag.h"
-#include "hdr_frag.h"
-#include "ntsc_frag.h"
-#include "crt_frag.h"
-#include "deband_frag.h"
 
 #define FX_FORMAT VK_FORMAT_R8G8B8A8_UNORM
 
@@ -35,18 +29,15 @@ struct fx_settings {
     int scaling;
     int sharp_pct;
     int cas_on, cas_pct;
-    int hdr_on;
-    int deband_on, deband_pct;
     int color_on;
     float brightness, contrast, gamma, saturation;
     float b_raw, c_raw, s_raw;
-    int fxaa, toon, crt, ntsc;
     char look[48];
 };
 
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct fx_settings g_set = {
-    .scaling = 0, .sharp_pct = 75, .cas_on = 0, .cas_pct = 60, .deband_pct = 100,
+    .scaling = 0, .sharp_pct = 75, .cas_on = 0, .cas_pct = 60,
     .gamma = 1.0f, .saturation = 1.0f, .s_raw = 100.0f, .look = "Off"};
 static volatile int g_changed;
 static struct fx_settings g_cur;
@@ -69,15 +60,8 @@ void vkp_effects_set_cas(int enabled, int pct) {
     if (pct > 100) pct = 100;
     set_begin(); g_set.cas_on = enabled ? 1 : 0; g_set.cas_pct = pct; set_end();
 }
-void vkp_effects_set_hdr(int enabled) { set_begin(); g_set.hdr_on = enabled ? 1 : 0; set_end(); }
-void vkp_effects_set_deband(int enabled, int pct) {
-    if (pct < 0) pct = 0;
-    if (pct > 200) pct = 200;
-    set_begin(); g_set.deband_on = enabled ? 1 : 0; g_set.deband_pct = pct; set_end();
-}
 static float clampf(float v, float lo, float hi) { return v < lo ? lo : v > hi ? hi : v; }
-void vkp_effects_set_screen(float brightness, float contrast, float gamma, float saturation,
-                            int fxaa, int toon, int crt, int ntsc) {
+void vkp_effects_set_screen(float brightness, float contrast, float gamma, float saturation) {
     int on = !(brightness == 0.0f && contrast == 0.0f && gamma == 1.0f && saturation == 100.0f);
     set_begin();
     g_set.color_on = on;
@@ -86,7 +70,6 @@ void vkp_effects_set_screen(float brightness, float contrast, float gamma, float
     g_set.contrast = clampf(contrast / 100.0f, 0.0f, 2.0f);
     g_set.saturation = clampf(saturation / 100.0f, 0.0f, 2.0f);
     g_set.gamma = clampf(gamma, 0.1f, 5.0f);
-    g_set.fxaa = fxaa ? 1 : 0; g_set.toon = toon ? 1 : 0; g_set.crt = crt ? 1 : 0; g_set.ntsc = ntsc ? 1 : 0;
     set_end();
 }
 void vkp_effects_set_look(const char *name) {
@@ -102,7 +85,7 @@ static const char *scaling_name(int m) {
 static int spatial_mode(int m) { return m >= 3 && m <= 8; }
 static int cas_active(const struct fx_settings *s) { return s->cas_on && s->cas_pct > 0; }
 static int effect_count(const struct fx_settings *s) {
-    return s->fxaa + s->toon + s->color_on + cas_active(s) + s->hdr_on + s->ntsc + s->crt + s->deband_on;
+    return s->color_on + cas_active(s);
 }
 
 static void log_settings(const struct fx_settings *s) {
@@ -120,12 +103,6 @@ static void log_settings(const struct fx_settings *s) {
     if (s->color_on)
         n += snprintf(line + n, sizeof(line) - n, ", colour b=%+.0f c=%+.0f g=%.2f s=%.0f%%",
                       s->b_raw, s->c_raw, s->gamma, s->s_raw);
-    if (s->fxaa) n += snprintf(line + n, sizeof(line) - n, ", FXAA on");
-    if (s->toon) n += snprintf(line + n, sizeof(line) - n, ", Toon on");
-    if (s->hdr_on) n += snprintf(line + n, sizeof(line) - n, ", HDR on");
-    if (s->ntsc) n += snprintf(line + n, sizeof(line) - n, ", NTSC on");
-    if (s->crt) n += snprintf(line + n, sizeof(line) - n, ", CRT on");
-    if (s->deband_on) n += snprintf(line + n, sizeof(line) - n, ", Deband on %d%%", s->deband_pct);
     (void)n;
     droiddeck_log("effects", "%s", line);
 }
@@ -191,12 +168,11 @@ static VkDescriptorSetLayout g_dsl;
 static VkPipelineLayout g_pl;
 static VkDescriptorPool g_dpool;
 static VkSampler g_sampler;
-enum { P_SGSR, P_SGSR_HQ, P_NIS, P_EASU, P_RCAS, P_CAS, P_COLOR, P_FXAA, P_TOON, P_HDR, P_NTSC, P_CRT, P_DEBAND, P_COUNT };
+enum { P_SGSR, P_SGSR_HQ, P_NIS, P_EASU, P_RCAS, P_CAS, P_COLOR, P_COUNT };
 static VkPipeline g_pipe[P_COUNT];
 static struct fx_target g_t[2], g_mid;
 
 static struct { VkImage img; VkImageView view; VkDescriptorSet ds; int w, h; } g_scene;
-static uint32_t g_ntsc_frame;
 
 void vkp_effects_bind_device(VkDevice dev, VkPhysicalDevice pd,
                              const VkPhysicalDeviceMemoryProperties *memprops) {
@@ -425,12 +401,6 @@ static int objects_ensure(void) {
     MK(P_RCAS, fsr_rcas_code, "fsr_rcas");
     MK(P_CAS, cas_code, "cas");
     MK(P_COLOR, color_code, "color");
-    MK(P_FXAA, fxaa_code, "fxaa");
-    MK(P_TOON, toon_code, "toon");
-    MK(P_HDR, hdr_code, "hdr");
-    MK(P_NTSC, ntsc_code, "ntsc");
-    MK(P_CRT, crt_code, "crt");
-    MK(P_DEBAND, deband_code, "deband");
 #undef MK
     g_vk.DestroyShaderModule(g_dev, vert, NULL);
     g_ready = 1;
@@ -555,24 +525,16 @@ VkImage vkp_effects_run(VkCommandBuffer cmd, VkImage scene, int scene_w, int sce
             cur = NULL; cur_ds = g_scene.ds;
         }
 
-        enum { FX_FXAA, FX_TOON, FX_COLOR, FX_CAS, FX_HDR, FX_NTSC, FX_CRT, FX_DEBAND };
-        int order[8], n = 0;
-        if (s->fxaa) order[n++] = FX_FXAA;
-        if (s->toon) order[n++] = FX_TOON;
+        enum { FX_COLOR, FX_CAS };
+        int order[2], n = 0;
         if (s->color_on) order[n++] = FX_COLOR;
         if (cas_active(s)) order[n++] = FX_CAS;
-        if (s->hdr_on) order[n++] = FX_HDR;
-        if (s->ntsc) order[n++] = FX_NTSC;
-        if (s->crt) order[n++] = FX_CRT;
-        if (s->deband_on) order[n++] = FX_DEBAND;
         for (int i = 0; i < n; i++) {
             struct fx_target *dst = FREE_TARGET();
             struct pc_res pr = {0};
             SET_NDC(pr);
             pr.res[0] = (float)cw; pr.res[1] = (float)ch;
             switch (order[i]) {
-            case FX_FXAA: pass(cmd, g_pipe[P_FXAA], dst, cur_ds, &pr, sizeof(pr)); break;
-            case FX_TOON: pass(cmd, g_pipe[P_TOON], dst, cur_ds, &pr, sizeof(pr)); break;
             case FX_COLOR: {
                 struct pc_color pc = {0};
                 SET_NDC(pc);
@@ -581,13 +543,6 @@ VkImage vkp_effects_run(VkCommandBuffer cmd, VkImage scene, int scene_w, int sce
                 break;
             }
             case FX_CAS: pr.extra = (float)s->cas_pct / 100.0f; pass(cmd, g_pipe[P_CAS], dst, cur_ds, &pr, sizeof(pr)); break;
-            case FX_HDR: pass(cmd, g_pipe[P_HDR], dst, cur_ds, &pr, sizeof(pr)); break;
-            case FX_NTSC:
-                pr.extra = (float)(g_ntsc_frame++ & 3u);
-                pass(cmd, g_pipe[P_NTSC], dst, cur_ds, &pr, sizeof(pr));
-                break;
-            case FX_CRT: pass(cmd, g_pipe[P_CRT], dst, cur_ds, &pr, sizeof(pr)); break;
-            case FX_DEBAND: pr.extra = (float)s->deband_pct / 100.0f; pass(cmd, g_pipe[P_DEBAND], dst, cur_ds, &pr, sizeof(pr)); break;
             }
             cur = dst; cur_ds = dst->ds;
         }

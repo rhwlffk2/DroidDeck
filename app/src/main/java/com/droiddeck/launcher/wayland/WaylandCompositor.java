@@ -262,12 +262,7 @@ public final class WaylandCompositor {
 
     public static native void nativeSetCas(boolean enabled, int sharpness);
 
-    public static native void nativeSetHdr(boolean enabled);
-
-    public static native void nativeSetDeband(boolean enabled, int strength);
-
-    public static native void nativeSetScreenEffects(float brightness, float contrast, float gamma, float saturation,
-                                                     boolean fxaa, boolean toon, boolean crt, boolean ntsc);
+    public static native void nativeSetScreenEffects(float brightness, float contrast, float gamma, float saturation);
 
     public static native void nativeSetLookName(String name);
 
