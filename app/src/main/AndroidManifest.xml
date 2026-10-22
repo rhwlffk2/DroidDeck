@@ -134,17 +134,6 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density"
             android:theme="@style/AppTheme" />
 
-        <activity android:name=".stores.xbox.XboxLoginActivity" android:exported="false"
-            android:process=":xboxlogin" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density"
-            android:theme="@style/AppTheme" />
-
-        <activity
-            android:name=".stores.StoreLoginActivity"
-            android:exported="false"
-            android:screenOrientation="sensorLandscape"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density"
-            android:theme="@style/AppTheme" />
-
         <activity
             android:name=".SessionActivity"
             android:exported="false"
@@ -182,10 +171,6 @@
         <service
             android:name=".runtime.RuntimeInstallService"
             android:exported="false" />
-        <service
-            android:name=".stores.download.StoreDownloadService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.logs"

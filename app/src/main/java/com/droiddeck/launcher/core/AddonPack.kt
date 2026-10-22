@@ -142,9 +142,5 @@ internal class AddonPack(
         val TRACKING = AddonPack("tracking", BuildConfig.PACK_TRACKING_SHA256, BuildConfig.PACK_TRACKING_SIZE, listOf(
             "hand_landmarker.task", "hand_landmarker_lite.task", "pose_landmarker_lite.task",
             "libopencv_java4.so", "libmediapipe_tasks_jni.so"))
-        val XBOX = AddonPack("xbox", BuildConfig.PACK_XBOX_SHA256, BuildConfig.PACK_XBOX_SIZE,
-            listOf("version", "xodus-cli", "xodus-service"))
-        val COMET = AddonPack("comet", BuildConfig.PACK_COMET_SHA256, BuildConfig.PACK_COMET_SIZE,
-            listOf("version", "comet"))
     }
 }

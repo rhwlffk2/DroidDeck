@@ -1,6 +1,6 @@
 package com.droiddeck.launcher.frontend
 
-import com.droiddeck.launcher.stores.CredentialCipher
+import com.droiddeck.launcher.core.CredentialCipher
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After

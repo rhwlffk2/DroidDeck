@@ -61,29 +61,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.droiddeck.launcher.frontend.Library
-import com.droiddeck.launcher.stores.epic.EpicClient
 import kotlinx.coroutines.launch
 
 
 @Composable
 internal fun GamesPage(s: FrontEndState, a: FrontEndActions, selected: String, onSelect: (String) -> Unit, modifier: Modifier) {
     val pageContext = androidx.compose.ui.platform.LocalContext.current
-    LaunchedEffect(Unit) { EpicClient.refresh(pageContext) }
-    val launcherName = stringResource(R.string.epic_client_title)
-    val epic = EpicClient.status
-    val launcherArt by androidx.compose.runtime.produceState<java.io.File?>(null, epic.version) {
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { EpicClient.icon(pageContext, epic.version) }
-    }
-    val games = remember(s.steamGames, s.shortcutPicker, epic, launcherName, launcherArt) {
-        val sorted = s.steamGames.sortedByDescending { it.lastPlayed }
-        if (s.shortcutPicker) sorted else EpicClient.withLauncher(sorted, EpicClient.launcherEntry(pageContext, launcherName, epic, launcherArt))
-    }
-    val gameCount = games.count { it.library != Library.EPIC_LAUNCHER }
+    val games = remember(s.steamGames) { s.steamGames.sortedByDescending { it.lastPlayed } }
+    val gameCount = games.size
     val narrow = LocalNarrowPane.current
     val current = games.firstOrNull { "app:${it.appId}" == selected } ?: games.firstOrNull()
     GamesDialogs(a, s.steamGames)
     val onAdd: (() -> Unit)? = if (s.shortcutPicker) null else ({ GamesDialogState.adding = true })
-    val launch: (Library.SteamGame) -> Unit = { g -> if (g.library == Library.EPIC_LAUNCHER) a.onEpicLauncher() else a.onSteamGame(g) }
+    val launch: (Library.SteamGame) -> Unit = { g -> a.onSteamGame(g) }
     val onEdit: (Library.SteamGame) -> Unit = { g ->
         g.gameFiles?.let { GamesDialogState.editing = EditRequest(it.path, openTarget = false, fromSummary = false, preview = EditPreview.of(pageContext, g, it.path)) }
     }
@@ -99,7 +89,6 @@ internal fun GamesPage(s: FrontEndState, a: FrontEndActions, selected: String, o
             if (!s.shortcutPicker) Rise(2) {
                 Actions {
                     PrimaryButton(stringResource(R.string.games_play_steam), enabled = !s.busy, main = true, icon = Icons.Filled.PlayArrow, modifier = Modifier.padding(top = 12.dp).testTag("play-steam"), onClick = a.onPlay)
-                    games.firstOrNull { it.library == Library.EPIC_LAUNCHER }?.let { SecondaryButton(it.name, enabled = !s.busy, modifier = Modifier.padding(top = 12.dp)) { a.onEpicLauncher() } }
                 }
             }
             GameFileFolderActions(s, a)
@@ -167,11 +156,6 @@ private fun GameFileFolderActions(s: FrontEndState, a: FrontEndActions) {
 private fun GameActions(g: Library.SteamGame, s: FrontEndState, a: FrontEndActions, onEdit: (Library.SteamGame) -> Unit, launch: (Library.SteamGame) -> Unit) {
     Actions {
         PrimaryButton(stringResource(if (s.shortcutPicker) R.string.game_shortcut_choose else R.string.games_launch), enabled = !s.busy, main = true, icon = Icons.Filled.PlayArrow) { launch(g) }
-        if (g.library == Library.EPIC_LAUNCHER) {
-            if (!s.shortcutPicker) UninstallEpicLauncher(s, a)
-            BusyChip(s)
-            return@Actions
-        }
         g.gameFiles?.takeIf { it.isDirectory }?.let { dir ->
             SecondaryButton(stringResource(R.string.games_files), compact = true) { a.onBrowseFiles(dir) }
         }
@@ -184,22 +168,6 @@ private fun GameActions(g: Library.SteamGame, s: FrontEndState, a: FrontEndActio
         else if (!s.shortcutPicker && g.library != Library.ADDED && g.source == Library.SOURCE_STEAM) EditGameButton { GamesDialogState.steamArt = g }
         else if (!s.shortcutPicker && g.library == Library.ADDED && g.source != Library.ADDED && g.gameFiles != null) EditGameButton { GamesDialogState.storeArt = g }
         BusyChip(s)
-    }
-}
-
-@Composable
-private fun UninstallEpicLauncher(s: FrontEndState, a: FrontEndActions) {
-    var asking by remember { androidx.compose.runtime.mutableStateOf(false) }
-    SecondaryButton(stringResource(R.string.common_uninstall), enabled = !s.busy, compact = true) { asking = true }
-    if (asking) {
-        val body = stringResource(R.string.epic_client_uninstall_body)
-        ConfirmDialog(
-            title = stringResource(R.string.stores_uninstall_title, stringResource(R.string.epic_client_title)),
-            text = if (s.sessionRunning) body + "\n\n" + stringResource(R.string.epic_client_uninstall_stops) else body,
-            confirm = stringResource(R.string.common_uninstall),
-            onConfirm = { a.onUninstallEpicLauncher() },
-            onDismiss = { asking = false },
-        )
     }
 }
 
@@ -245,12 +213,10 @@ private fun ManageSaves(g: Library.SteamGame, prefix: java.io.File, a: FrontEndA
         }
     }
     Box {
-        val cloudGame = com.droiddeck.launcher.stores.Store.byId(g.source).let { it == com.droiddeck.launcher.stores.Store.GOG || it == com.droiddeck.launcher.stores.Store.EPIC }
-        val label = stringResource(if (cloudGame) R.string.store_cloud_saves else R.string.games_manage_saves)
+        val label = stringResource(R.string.games_manage_saves)
         SecondaryButton(label, compact = true) { open = !open }
-        AnchoredMenu(open, onDismiss = { open = false }, title = if (cloudGame) label else stringResource(R.string.games_saves), note = summary) { first ->
-            if (cloudGame) CloudRows(g, open, first)
-            MenuItem(stringResource(R.string.games_import_saves), checked = false, focusRequester = if (cloudGame) null else first) {
+        AnchoredMenu(open, onDismiss = { open = false }, title = stringResource(R.string.games_saves), note = summary) { first ->
+            MenuItem(stringResource(R.string.games_import_saves), checked = false, focusRequester = first) {
                 open = false; a.onSaveImport(g)
             }
             MenuItem(stringResource(R.string.games_export_gamehub), checked = false) {
@@ -266,68 +232,6 @@ private fun ManageSaves(g: Library.SteamGame, prefix: java.io.File, a: FrontEndA
             }
         }
     }
-}
-
-/** A skipped sync is not a success: "0 files" used to show for a signed-out store or cloud saves turned off. */
-internal fun cloudMessage(context: android.content.Context, r: com.droiddeck.launcher.stores.CloudSaves.Result): String = when (r.result) {
-    "ok" -> when {
-        r.conflicts > 0 -> context.getString(R.string.cloud_conflict_files, r.conflicts)
-        r.files == 0 -> context.getString(R.string.cloud_up_to_date)
-        else -> context.getString(R.string.cloud_done, r.files)
-    }
-    "skipped" -> context.getString(when (r.reason) {
-        "not-signed-in" -> R.string.cloud_signed_out
-        "no-cloud-saves" -> R.string.cloud_none
-        else -> R.string.cloud_not_synced
-    })
-    else -> context.getString(R.string.cloud_not_synced)
-}
-
-@Composable
-private fun CloudRows(g: Library.SteamGame, open: Boolean, first: androidx.compose.ui.focus.FocusRequester) {
-    val store = com.droiddeck.launcher.stores.Store.byId(g.source)?.takeIf { it != com.droiddeck.launcher.stores.Store.AMAZON } ?: return
-    val id = g.storeId ?: return
-    val context = androidx.compose.ui.platform.LocalContext.current.applicationContext
-    var busy by remember(g.gameId) { androidx.compose.runtime.mutableStateOf<String?>(null) }
-    var tick by remember(g.gameId) { androidx.compose.runtime.mutableStateOf(0) }
-    val status by androidx.compose.runtime.produceState<com.droiddeck.launcher.stores.CloudSaves.Status?>(null, g.gameId, open, tick) {
-        if (open) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching { com.droiddeck.launcher.stores.CloudSaves.status(context, store, id) }.getOrNull()
-        }
-    }
-    val folder = g.gameFiles
-    var enabled by remember(g.gameId, open) { androidx.compose.runtime.mutableStateOf(folder?.let { com.droiddeck.launcher.stores.StoreGameSidecar.read(it)?.cloud } ?: true) }
-    val st = status
-    val supported = st?.supported ?: true
-    val conflict = st != null && st.conflicts.isNotEmpty()
-    fun sync(up: Boolean, force: Boolean = false) {
-        if (busy != null) return
-        busy = if (up) "up" else "down"
-        Thread({
-            val r = if (up) com.droiddeck.launcher.stores.CloudSaves.upload(context, store, id, force) else com.droiddeck.launcher.stores.CloudSaves.download(context, store, id, force)
-            com.droiddeck.launcher.stores.StoresState.post { busy = null; tick++; android.widget.Toast.makeText(context, cloudMessage(context, r), android.widget.Toast.LENGTH_SHORT).show() }
-        }, "cloud-manual").start()
-    }
-    MenuItem(stringResource(R.string.store_cloud_saves), checked = enabled && supported, enabled = supported, focusRequester = first,
-        detail = if (!supported) stringResource(R.string.cloud_none) else null) {
-        val f = folder ?: return@MenuItem
-        val next = !enabled
-        Thread({
-            val written = runCatching { com.droiddeck.launcher.stores.StoreGameSidecar.updateCloud(f, next) }.getOrNull()
-            com.droiddeck.launcher.stores.StoresState.post { enabled = written?.cloud ?: enabled }
-        }, "cloud-switch").start()
-    }
-    val ready = st != null && supported && enabled && busy == null
-    val pending = stringResource(R.string.cloud_pending)
-    val summary = when {
-        st == null || busy != null -> pending
-        !supported -> stringResource(R.string.cloud_none)
-        conflict -> stringResource(R.string.cloud_conflict_files, st.conflicts.size)
-        st.lastSync > 0 -> stringResource(R.string.cloud_last_sync, android.text.format.DateUtils.getRelativeTimeSpanString(st.lastSync).toString())
-        else -> stringResource(R.string.cloud_never)
-    }
-    MenuItem(stringResource(if (conflict) R.string.cloud_keep_local else R.string.cloud_upload), checked = false, enabled = ready, detail = summary) { sync(up = true, force = conflict) }
-    MenuItem(stringResource(if (conflict) R.string.cloud_keep_cloud else R.string.cloud_download), checked = false, enabled = ready, detail = if (st == null || busy != null) pending else null) { sync(up = false, force = conflict) }
 }
 
 @Composable
@@ -459,7 +363,7 @@ private fun GamesDialogs(a: FrontEndActions, games: List<Library.SteamGame>) {
 @Composable
 private fun GameRemoveButton(g: Library.SteamGame, s: FrontEndState, a: FrontEndActions) {
     val kind = com.droiddeck.launcher.frontend.GameRemoval.kind(g)
-    if (s.shortcutPicker || kind == com.droiddeck.launcher.frontend.GameRemoval.Kind.LAUNCHER) return
+    if (s.shortcutPicker) return
     if (g.gameFiles?.isDirectory != true) return
     val colors = MaterialTheme.colorScheme
     val pal = LocalPalette.current
@@ -571,8 +475,7 @@ private fun GameRow(g: Library.SteamGame, selected: Boolean, onSelect: () -> Uni
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 SourceChip(g.source, small = true)
                 Text(
-                    if (g.library == Library.EPIC_LAUNCHER) libraryLabel(g)
-                    else playedSpan(g.lastPlayed)?.replaceFirstChar { it.uppercase() } ?: stringResource(R.string.games_never_played),
+                    playedSpan(g.lastPlayed)?.replaceFirstChar { it.uppercase() } ?: stringResource(R.string.games_never_played),
                     fontSize = 12.sp, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -621,7 +524,6 @@ private fun playedSpan(lastPlayed: Long): String? {
 
 @Composable
 private fun libraryLabel(g: Library.SteamGame): String = when {
-    g.library == Library.EPIC_LAUNCHER -> EpicClient.status.version?.substringBefore('+')?.let { stringResource(R.string.epic_client_version, it) } ?: ""
     g.library != Library.ADDED -> if (g.library == "internal") stringResource(R.string.games_internal) else g.library
     g.source != Library.ADDED -> stringResource(R.string.games_store_storage)
     else -> ""
@@ -631,7 +533,7 @@ private fun libraryLabel(g: Library.SteamGame): String = when {
 private fun GameHero(g: Library.SteamGame, modifier: Modifier, corner: @Composable BoxScope.() -> Unit = {}, content: @Composable ColumnScope.() -> Unit) {
     val colors = MaterialTheme.colorScheme
     Box(modifier = modifier.clip(Shape16).background(artBrush(hueOf(g.name)))) {
-        val image = g.hero ?: g.art.takeIf { g.library != Library.EPIC_LAUNCHER }
+        val image = g.hero ?: g.art
         if (image != null) AsyncImage(
             model = image, contentDescription = null, contentScale = ContentScale.Crop,
             modifier = Modifier.matchParentSize()

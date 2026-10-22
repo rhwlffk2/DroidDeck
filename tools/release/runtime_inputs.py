@@ -14,16 +14,16 @@ ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = Path('app/build/runtime-inputs.json')
 PACKS = Path('app/build/packs')
 # Runtime trees shipped as add-on packs (tools/packs/build.sh) rather than inside the APK.
-PACKED = {'assets/linuxfs/usr/local/lib/droiddeck-xbox/': 'xbox', 'assets/linuxfs/usr/local/lib/droiddeck-comet/': 'comet',
+PACKED = {
           'assets/directaudio/': 'directaudio'}
 PACKED_FILES = {'lib/arm64-v8a/libproot.so': ('proot', 'libproot.so'),
                 'lib/arm64-v8a/libproot-loader.so': ('proot', 'libproot-loader.so')}
 PACKED_LIBRARIES = ['lib/arm64-v8a/libopencv_java4.so', 'lib/arm64-v8a/libmediapipe_tasks_jni.so']
-PACK_NAMES = ['proot', 'directaudio', 'tracking', 'xbox', 'comet']
+PACK_NAMES = ['proot', 'directaudio', 'tracking']
 SOURCE_PATHS = ['app/build.gradle', 'app/src/main/cpp/fakeinput_steam.cpp', 'app/src/main/assets/pulseaudio.tzst',
                 'tools/linuxfs', 'tools/proot', 'tools/aaudio-sink', 'tools/directaudio',
                 'tools/gamescope/release.env', 'tools/droiddeck-esync/release.env',
-                'tools/msitools', 'tools/comet', 'tools/xbox', 'tools/build_local.sh',
+                'tools/msitools', 'tools/build_local.sh',
                 'tools/release/runtime_inputs.py', 'app/src/main/assets/desktop-removal',
                 'tools/quest', 'tools/vr/src', 'tools/vr/driver_droiddeck', 'tools/vr/layer', 'tools/vr/build.sh',
                 'app/src/main/cpp/waylandcomp/src/headpose_shm.h',
@@ -93,15 +93,6 @@ def required():
         paths += [f'assets/linuxfs/usr/local/lib/droiddeck-vr/droiddeck/resources/rendermodels/droiddeck_hand_{side}/{name}'
                   for name in [f'droiddeck_hand_{side}.json', 'hand.mtl', 'hand.png', 'hand_open.obj', 'hand_fist.obj',
                                'thumb_index_open.obj', 'thumb_index_pinch.obj']]
-    paths += ['assets/linuxfs/usr/local/lib/droiddeck-comet/' + name for name in
-              ['comet', 'GalaxyCommunication.exe', 'update-permissions.exe', 'LICENSE', 'version']]
-    paths += ['assets/linuxfs/usr/local/lib/droiddeck-xbox/' + name for name in
-              ['xodus-cli', 'xodus-service', 'version', 'backend.lock.json', 'runtime.lock.json', 'LICENSE.xodus', 'LICENSE.nexus', 'LICENSE.LGPL-2.1', 'LICENSE.nghttp2',
-               'windows/xgameruntime.dll', 'windows/winhttp.dll', 'windows/windows.web.dll', 'windows/twinapi.appcore.dll', 'windows/libnghttp2.dll']]
-    for driver in ['linux-wine11', 'linux-wine11-systhread']:
-        paths += ['assets/directaudio/' + driver + '/' + name for name in
-                  ['aarch64-unix/winedirectaudio.so', 'aarch64-windows/winedirectaudio.drv',
-                   'i386-windows/winedirectaudio.drv', 'version.txt']]
     paths += ['assets/droiddeck-esync/index.json', 'assets/droiddeck-esync/index.json.sig',
               'lib/arm64-v8a/libproot.so', 'lib/arm64-v8a/libproot-loader.so',
               'lib/arm64-v8a/libdirectaudiorelay.so', 'assets/pulseaudio.tzst']

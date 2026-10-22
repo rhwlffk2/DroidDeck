@@ -35,12 +35,6 @@ class App : Application() {
         com.droiddeck.launcher.glasses.GlassesMenuMirror.initialize(this)
         BwrapSpawner.start(this)
         com.droiddeck.launcher.frontend.GameFileSync.start(this)
-        com.droiddeck.launcher.stores.StoresState.init(this)
-        com.droiddeck.launcher.stores.StoresState.register(com.droiddeck.launcher.stores.gog.GogBackend)
-        com.droiddeck.launcher.stores.StoresState.register(com.droiddeck.launcher.stores.epic.EpicBackend)
-        com.droiddeck.launcher.stores.StoresState.register(com.droiddeck.launcher.stores.amazon.AmazonBackend)
-        com.droiddeck.launcher.stores.StoresState.register(com.droiddeck.launcher.stores.itch.ItchBackend)
-        com.droiddeck.launcher.stores.StoresState.register(com.droiddeck.launcher.stores.xbox.XboxBackend)
     }
 
     /** Fetches the packs an existing setup already relies on, so the first use after an update does not wait. */
@@ -52,9 +46,6 @@ class App : Application() {
                     com.droiddeck.launcher.core.AddonPack.PROOT.ensure(app)
                     com.droiddeck.launcher.core.AddonPack.DIRECTAUDIO.ensure(app)
                 }
-                if (com.droiddeck.launcher.stores.gog.GogComet.enabled(app)) com.droiddeck.launcher.core.AddonPack.COMET.ensure(app)
-                if (com.droiddeck.launcher.stores.StoreAccounts.signedInAs(app, com.droiddeck.launcher.stores.Store.XBOX) != null)
-                    com.droiddeck.launcher.core.AddonPack.XBOX.ensure(app)
             }.onFailure { android.util.Log.w("App", "add-on pack prefetch failed", it) }
         }, "addon-packs").start()
     }

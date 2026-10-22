@@ -238,8 +238,6 @@ class DrawerActions(
     val onHardwareKeyboard: () -> Unit,
     val onSteamMenu: (() -> Unit)?,
     val onQam: (() -> Unit)?,
-    val onAchievements: (() -> Unit)? = null,
-    val achievementsProgress: Pair<Int, Int>? = null,
     val onOsc: (String) -> Unit,
     val onEditSteamTouch: (() -> Unit)? = null,
     val controller: com.droiddeck.launcher.input.ControllerPrefs.Settings? = null,
@@ -441,11 +439,6 @@ internal fun SessionDrawer(open: Boolean, requestedPage: SessionDrawerPage, cont
                         }
                     }
                     StopSessionButton(modifier = focus.track(page, "stop").onGloballyPositioned { stopCoords = it }) { host.open = null; confirmStop = true }
-                }
-                a.onAchievements?.let { show ->
-                    DrawerAchievementsRow(a.achievementsProgress, Modifier.padding(top = if (short) 6.dp else 10.dp).then(focus.track(page, "achievements"))) {
-                        host.open = null; show()
-                    }
                 }
 
                 Row(

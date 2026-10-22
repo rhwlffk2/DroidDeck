@@ -1,20 +1,12 @@
 package com.droiddeck.launcher.frontend
 
-import com.droiddeck.launcher.stores.InstalledStoreGame
-import com.droiddeck.launcher.stores.Store
-import com.droiddeck.launcher.stores.StoreGameSidecar
-import com.droiddeck.launcher.stores.StoreInstalls
-import com.droiddeck.launcher.stores.StoresState
 import java.io.File
 
 object GameRemoval {
-    enum class Kind { STORE, SHORTCUT, LAUNCHER }
+    enum class Kind { STEAM, SHORTCUT }
 
-    fun kind(game: Library.SteamGame): Kind = when {
-        game.library == Library.EPIC_LAUNCHER -> Kind.LAUNCHER
-        game.library == Library.ADDED && game.source == Library.ADDED -> Kind.SHORTCUT
-        else -> Kind.STORE
-    }
+    fun kind(game: Library.SteamGame): Kind =
+        if (game.library == Library.ADDED && game.source == Library.ADDED) Kind.SHORTCUT else Kind.STEAM
 
     class SteamFiles(val dir: File, val manifest: File, val partial: File?)
 
@@ -31,20 +23,16 @@ object GameRemoval {
     }
 
     fun delete(target: SteamFiles): Boolean {
-        StoreInstalls.deleteTree(target.dir)
+        deleteTree(target.dir)
         if (target.dir.exists()) return false
-        target.partial?.let { StoreInstalls.deleteTree(it) }
+        target.partial?.let { deleteTree(it) }
         target.manifest.delete()
         return !target.manifest.exists()
     }
 
-    fun storeGame(game: Library.SteamGame): InstalledStoreGame? {
-        val folder = game.gameFiles ?: return null
-        val store = Store.byId(game.source)
-        val id = game.storeId
-        if (store != null && id != null) StoresState.installedGame(store, id)?.let { return it }
-        val sidecar = StoreGameSidecar.read(folder)?.takeIf { it.isInstalled } ?: return null
-        return InstalledStoreGame(sidecar, folder)
+    private fun deleteTree(dir: File) {
+        dir.listFiles()?.forEach { if (it.isDirectory) deleteTree(it) else it.delete() }
+        dir.delete()
     }
 
     private fun declares(manifest: File, appId: Int): Boolean =

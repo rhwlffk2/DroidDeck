@@ -1,9 +1,4 @@
-package com.droiddeck.launcher.session
 
-import com.droiddeck.launcher.core.GameEnvironment
-import com.droiddeck.launcher.frontend.AddedGames
-import com.droiddeck.launcher.frontend.Library
-import com.droiddeck.launcher.stores.epic.EpicClient
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -26,12 +21,10 @@ class NoSteamLaunchTest {
 
     private val steamGame = Library.SteamGame(413150, "Stardew Valley", null, "internal")
     private val shortcut = Library.SteamGame((2733369024L).toInt(), "Hogwarts Legacy", null, Library.ADDED, source = "epic")
-    private val launcher = Library.SteamGame(EpicClient.LAUNCHER_APP_ID, Library.EPIC_LAUNCHER_NAME, null, Library.EPIC_LAUNCHER, source = "epic")
 
     @Test fun eachKindOfGameKeepsTheSettingUnderItsOwnId() {
         assertEquals("413150", NoSteamLaunch.scope(steamGame))
         assertEquals("2733369024", NoSteamLaunch.scope(shortcut))
-        assertEquals(EpicClient.shortcutAppId.toString(), NoSteamLaunch.scope(launcher))
         assertNull(NoSteamLaunch.scope(Library.SteamGame(0, "nothing", null, "internal")))
     }
 
@@ -41,12 +34,8 @@ class NoSteamLaunchTest {
         assertTrue(NoSteamLaunch.enabled(context, shortcut))
         assertTrue(NoSteamLaunch.enabled(context, 2733369024L))
         assertFalse(NoSteamLaunch.enabled(context, steamGame))
-        assertFalse(NoSteamLaunch.enabled(context, launcher))
-        GameEnvironmentStore.setGameNoSteam(context, EpicClient.shortcutAppId.toString(), true)
-        assertTrue(NoSteamLaunch.enabled(context, launcher))
         GameEnvironmentStore.setGameNoSteam(context, "2733369024", false)
         assertFalse(NoSteamLaunch.enabled(context, shortcut))
-        assertTrue(GameEnvironment.gameNoSteam(GameEnvironmentStore.read(context), EpicClient.shortcutAppId.toString()))
     }
 
     @Test fun eachGameStartsInItsOwnProtonOrTheLauncherWithoutSteam() {
@@ -64,8 +53,6 @@ class NoSteamLaunchTest {
         assertNull(NoSteamLaunch.command(shortcut, null))
         val steam = NoSteamLaunch.command(steamGame, null)!!
         assertEquals(listOf("--app", "413150"), steam.args)
-        val epic = NoSteamLaunch.command(launcher, null)!!
-        assertEquals(NoSteamLaunch.EPIC to listOf("run"), epic.program to epic.args)
     }
 
     @Test fun anAddedGameOwnedOnSteamUsesItsSteamIdForSettingsAndLaunch() {
@@ -88,7 +75,6 @@ class NoSteamLaunchTest {
         assertNull(NoSteamLaunch.nameFor(command.program, command.args))
         NoSteamLaunch.remember(command)
         assertEquals("Stardew Valley", NoSteamLaunch.nameFor(command.program, command.args))
-        assertEquals(Library.EPIC_LAUNCHER_NAME, NoSteamLaunch.nameFor(NoSteamLaunch.EPIC, listOf("run")))
         assertNull(NoSteamLaunch.nameFor("/usr/bin/retroarch", emptyList()))
         assertNull(NoSteamLaunch.nameFor(NoSteamLaunch.PROTON_RUN, listOf("/x/a.exe")))
     }

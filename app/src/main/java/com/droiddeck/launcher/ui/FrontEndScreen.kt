@@ -139,16 +139,9 @@ class FrontEndState(
     val downloadPrefix: String = "",
     val animationsEnabled: Boolean = true,
     val launcherIcon: String = com.droiddeck.launcher.LauncherIcon.DARK,
-    val gameStoresEnabled: Boolean = true,
-    val gameStoresSpeedTier: String = "fast",
-    val storesOpenTab: String = SessionPrefs.STORES_OPEN_LIBRARY,
     val navigate: String? = null,
     val addedGamesArt: Boolean = true,
     val sgdbUserKey: Boolean = false,
-    val storesShowMature: Boolean = false,
-    val storesSort: String = SessionPrefs.STORES_SORTS.first(),
-    val storesView: String = SessionPrefs.STORES_VIEWS.first(),
-    val storeDownloadsActive: Int = 0,
 )
 
 class FrontEndActions(
@@ -169,8 +162,6 @@ class FrontEndActions(
     val onSgdbKey: (String) -> Unit = {},
     val onStopGameFileSync: () -> Unit = {},
     val onCopyGameLink: (Library.SteamGame) -> Unit = {},
-    val onEpicLauncher: () -> Unit = {},
-    val onUninstallEpicLauncher: () -> Unit = {},
     val onDesktop: () -> Unit,
     val onEmulator: (Library.Emulator) -> Unit,
     val onFlatpakApp: (String, String) -> Unit = { _, _ -> },
@@ -214,13 +205,7 @@ class FrontEndActions(
     val onDownloadSource: (String) -> Unit = {},
     val onDownloadMirror: (String) -> Unit = {},
     val onDownloadPrefix: (String) -> Unit = {},
-    val onGameStoresEnabled: (Boolean) -> Unit = {},
-    val onGameStoresSpeedTier: (String) -> Unit = {},
-    val onStoresOpenTab: (String) -> Unit = {},
     val onNavigated: () -> Unit = {},
-    val onStoresShowMature: (Boolean) -> Unit = {},
-    val onStoresSort: (String) -> Unit = {},
-    val onStoresView: (String) -> Unit = {},
     val onLibraryChanged: () -> Unit = {},
     val onHomeApp: () -> Unit = {},
     val onHomeScreen: (Boolean) -> Unit = {},
@@ -380,7 +365,6 @@ private fun FrontEndScreenBody(s: FrontEndState, a: FrontEndActions, page: (@Com
     LaunchedEffect(s.navigate) {
         val target = s.navigate ?: return@LaunchedEffect
         when (target) {
-            "stores:downloads" -> { com.droiddeck.launcher.stores.StoresState.openDownloads = true; selected = "stores" }
             "components" -> a.onComponents(true)
             "setup:launcher" -> { SetupTabs.openLauncher = true; selected = "setup" }
             else -> selected = target

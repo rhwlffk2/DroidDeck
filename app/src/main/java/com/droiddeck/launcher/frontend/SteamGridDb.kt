@@ -3,7 +3,7 @@ package com.droiddeck.launcher.frontend
 import android.content.Context
 import android.util.Log
 import androidx.annotation.VisibleForTesting
-import com.droiddeck.launcher.stores.CredentialCipher
+import com.droiddeck.launcher.core.CredentialCipher
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File

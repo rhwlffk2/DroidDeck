@@ -117,7 +117,7 @@ internal class DriverMenus(private val activity: Activity, private val ui: Handl
         if (SessionState.running) return
         val launch = activity.packageManager.getLaunchIntentForPackage(activity.packageName) ?: return
         activity.startActivity(android.content.Intent.makeRestartActivityTask(launch.component)
-            .putExtra(com.droiddeck.launcher.stores.download.StoreDownloadService.EXTRA_NAV, "components"))
+            .putExtra(com.droiddeck.launcher.core.Nav.EXTRA_NAV, "components"))
         Runtime.getRuntime().exit(0)
     }
     var androidRows by mutableStateOf<List<DriverRow>>(emptyList())

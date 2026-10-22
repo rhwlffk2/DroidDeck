@@ -72,53 +72,6 @@ object SessionPrefs {
         prefs(context).edit().putBoolean("animations", on).apply()
     }
 
-    fun gameStoresEnabled(context: Context): Boolean = prefs(context).getBoolean("gameStoresEnabled", true)
-
-    fun setGameStoresEnabled(context: Context, on: Boolean) {
-        prefs(context).edit().putBoolean("gameStoresEnabled", on).apply()
-    }
-
-    fun gameStoresSpeedTier(context: Context): String = prefs(context).getString("gameStoresSpeedTier", "fast") ?: "fast"
-
-    fun setGameStoresSpeedTier(context: Context, tier: String) {
-        prefs(context).edit().putString("gameStoresSpeedTier", tier).apply()
-    }
-
-    /**
-     * Hidden A/B switch for the Epic installer: "adaptive" (default: native parallel fetch written
-     * straight into staged files), "lookahead" (the native ordered-lookahead engine that caches each
-     * chunk and copies it into staged files), "batch" (the older whole-cache native fetch, then
-     * native assembly; needs about twice the game's size free) or "java" (the bounded Java writer).
-     * No UI; set it in the `session` preferences for benchmarks.
-     */
-    fun storesEpicMode(context: Context): String = prefs(context).getString("storesEpicMode", "adaptive") ?: "adaptive"
-
-    fun storesOpenTab(context: Context): String =
-        prefs(context).getString("storesOpenTab", STORES_OPEN_LIBRARY)?.takeIf { it == STORES_OPEN_STORE } ?: STORES_OPEN_LIBRARY
-
-    fun setStoresOpenTab(context: Context, tab: String) {
-        prefs(context).edit().putString("storesOpenTab", if (tab == STORES_OPEN_STORE) STORES_OPEN_STORE else STORES_OPEN_LIBRARY).apply()
-    }
-
-    fun storesShowMature(context: Context): Boolean = prefs(context).getBoolean("storesShowMature", false)
-
-    fun setStoresShowMature(context: Context, show: Boolean) {
-        prefs(context).edit().putBoolean("storesShowMature", show).apply()
-    }
-
-    fun storesSort(context: Context): String =
-        prefs(context).getString("storesSort", null)?.takeIf { it in STORES_SORTS } ?: STORES_SORTS.first()
-
-    fun setStoresSort(context: Context, sort: String) {
-        prefs(context).edit().putString("storesSort", if (sort in STORES_SORTS) sort else STORES_SORTS.first()).apply()
-    }
-
-    fun storesView(context: Context): String =
-        prefs(context).getString("storesView", null)?.takeIf { it in STORES_VIEWS } ?: STORES_VIEWS.first()
-
-    fun setStoresView(context: Context, view: String) {
-        prefs(context).edit().putString("storesView", if (view in STORES_VIEWS) view else STORES_VIEWS.first()).apply()
-    }
 
     fun storesTabOrder(context: Context): List<String> = idList(prefs(context).getString("storesTabOrder", null))
 
@@ -134,11 +87,7 @@ object SessionPrefs {
 
     private fun idList(raw: String?): List<String> = raw.orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }
 
-    val STORES_SORTS = listOf("lastPlayed", "recentlyInstalled", "titleAsc", "titleDesc", "sizeDesc", "sizeAsc", "releaseDateDesc")
-    val STORES_VIEWS = listOf("cards", "capsules", "list")
 
-    const val STORES_OPEN_LIBRARY = "library"
-    const val STORES_OPEN_STORE = "store"
 
     fun storesInstallTarget(context: Context): String = prefs(context).getString("storesInstallTarget", "") ?: ""
 
@@ -146,11 +95,6 @@ object SessionPrefs {
         prefs(context).edit().putString("storesInstallTarget", path).apply()
     }
 
-    fun gameStoresParallel(context: Context): Int = prefs(context).getInt("gameStoresParallel", 1).coerceIn(1, 3)
-
-    fun setGameStoresParallel(context: Context, count: Int) {
-        prefs(context).edit().putInt("gameStoresParallel", count.coerceIn(1, 3)).apply()
-    }
 
     fun hudEnabled(context: Context): Boolean = prefs(context).getBoolean(hudKey(context), true)
 

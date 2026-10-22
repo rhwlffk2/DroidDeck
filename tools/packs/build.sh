@@ -3,8 +3,6 @@
 #   proot.tar.zst     the patched proot and its loader (built by tools/proot)
 #   directaudio.tar.zst  the Wine DirectAudio drivers (fetched by tools/directaudio/fetch.sh)
 #   tracking.tar.zst  hand-tracking models and the OpenCV/MediaPipe native libraries
-#   xbox.tar.zst      the Xbox backend (built by tools/xbox) for /usr/local/lib/droiddeck-xbox
-#   comet.tar.zst     the GOG Galaxy companion (built by tools/comet) for /usr/local/lib/droiddeck-comet
 # Only CI publishes these (.github/workflows/publish-packs.yml); the APK built from the same
 # directory pins each pack's SHA-256.
 # Usage: tools/packs/build.sh <out-dir>
@@ -88,5 +86,3 @@ pack directaudio "$repo/app/src/main/assets/directaudio" \
     linux-wine11/version.txt linux-wine11-systhread/version.txt
 pack tracking "$work/tracking" hand_landmarker.task hand_landmarker_lite.task pose_landmarker_lite.task \
     libopencv_java4.so libmediapipe_tasks_jni.so
-pack xbox "$linuxfs/droiddeck-xbox" version xodus-cli xodus-service
-pack comet "$linuxfs/droiddeck-comet" version comet
