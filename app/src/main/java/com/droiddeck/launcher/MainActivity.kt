@@ -90,7 +90,6 @@ class MainActivity : ComponentActivity() {
     private val drivers = DriverMenus(this, ui)
     private val components = ComponentsMenu(this, ui)
     private val decky = DeckyMenu(this, ui)
-    private val updates = UpdatesMenu(this, ui)
     private val protons = ProtonMenu(this, ui)
 
     private var installed by mutableStateOf<String?>(null)
@@ -764,7 +763,6 @@ class MainActivity : ComponentActivity() {
         storesSort = SessionPrefs.storesSort(this)
         storesView = SessionPrefs.storesView(this)
         applyLauncherFullscreen()
-        updates.start()
         setContent {
             DroidDeckTheme(theme, appScale = appScale) {
             com.droiddeck.launcher.ui.FocusGlideHost(androidx.compose.ui.Modifier.fillMaxSize().exposeTestTags()) {
@@ -811,7 +809,6 @@ class MainActivity : ComponentActivity() {
                         buildLabel = BuildConfig.BUILD_LABEL,
                         oscMode = oscMode,
                         controller = controllerSettings,
-                        updates = updates.state(),
                         phantomProcessStatus = phantomProcessStatus,
                         showPhantomGate = showPhantomGate,
                         orientation = orientation,
@@ -1081,7 +1078,6 @@ class MainActivity : ComponentActivity() {
                                 .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName)
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                         },
-                        updates = updates.actions(),
                         controller = ControllerActions(
                             onOsc = { o -> SessionPrefs.setOscMode(this, o); oscMode = o },
                             onTint = { t -> ControllerPrefs.setTint(this, t); refreshController() },
@@ -1292,7 +1288,6 @@ class MainActivity : ComponentActivity() {
         }
         refreshPhantomStatus()
         syncLossless()
-        updates.onResume()
         drivers.checkOnOpen()
         resumeInterruptedPackages()
         protons.checkUpdates()
@@ -1343,7 +1338,6 @@ class MainActivity : ComponentActivity() {
         else @Suppress("DEPRECATION") state.getParcelable(key)
 
     override fun onDestroy() {
-        updates.unregister()
         super.onDestroy()
     }
 

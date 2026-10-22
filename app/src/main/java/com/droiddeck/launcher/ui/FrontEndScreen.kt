@@ -149,7 +149,6 @@ class FrontEndState(
     val storesSort: String = SessionPrefs.STORES_SORTS.first(),
     val storesView: String = SessionPrefs.STORES_VIEWS.first(),
     val storeDownloadsActive: Int = 0,
-    val updates: UpdatesState = UpdatesState(),
 )
 
 class FrontEndActions(
@@ -238,7 +237,6 @@ class FrontEndActions(
     val onStartWirelessAdbPairing: () -> Unit = {},
     val onOpenNotificationSettings: () -> Unit = {},
     val controller: ControllerActions? = null,
-    val updates: UpdatesActions = UpdatesActions(),
 )
 
 internal object Motion {
