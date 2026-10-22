@@ -152,7 +152,7 @@ object SessionPrefs {
         prefs(context).edit().putInt("gameStoresParallel", count.coerceIn(1, 3)).apply()
     }
 
-    fun hudEnabled(context: Context): Boolean = prefs(context).getBoolean(hudKey(context), !mangoappSession(context))
+    fun hudEnabled(context: Context): Boolean = prefs(context).getBoolean(hudKey(context), true)
 
     fun setHudEnabled(context: Context, on: Boolean) {
         prefs(context).edit().putBoolean(hudKey(context), on).apply()
@@ -195,10 +195,7 @@ object SessionPrefs {
     val HUD_OPACITY_RANGE = 30..100
     const val HUD_OPACITY_DEFAULT = 70
 
-    private fun hudKey(context: Context) = if (mangoappSession(context)) "hudDeck" else "hud"
-
-    private fun mangoappSession(context: Context) =
-        SessionState.mode == SessionService.MODE_STEAM && mangoapp(context)
+    private fun hudKey(context: Context) = "hud"
 
     fun lowLatencyController(context: Context): Boolean = prefs(context).getBoolean("lowLatencyController", false)
 
@@ -311,18 +308,6 @@ object SessionPrefs {
 
     fun setMicEnabled(context: Context, on: Boolean) {
         prefs(context).edit().putBoolean("mic", on).apply()
-    }
-
-    fun wifiDiscoveryEnabled(context: Context): Boolean = prefs(context).getBoolean("wifiDiscovery", false)
-
-    fun setWifiDiscoveryEnabled(context: Context, on: Boolean) {
-        prefs(context).edit().putBoolean("wifiDiscovery", on).apply()
-    }
-
-    fun wifiDiscoveryAsked(context: Context): Boolean = prefs(context).getBoolean("wifiDiscoveryAsked", false)
-
-    fun setWifiDiscoveryAsked(context: Context) {
-        prefs(context).edit().putBoolean("wifiDiscoveryAsked", true).apply()
     }
 
     internal data class CoreAllocation(val clientOverride: Boolean, val clientCpus: String, val gameCpus: String)
@@ -468,9 +453,6 @@ object SessionPrefs {
         CONTROLLER_DUALSENSE -> com.droiddeck.launcher.input.FakeInputWriter.PAD_TYPE_DUALSENSE
         else -> com.droiddeck.launcher.input.FakeInputWriter.PAD_TYPE_DECK
     }
-
-    fun mangoapp(context: Context): Boolean = prefs(context).getBoolean("mangoapp", true)
-    fun setMangoapp(context: Context, on: Boolean) { prefs(context).edit().putBoolean("mangoapp", on).apply() }
 
     fun zinkLazy(context: Context): Boolean = prefs(context).getBoolean("zinkLazy", true)
 

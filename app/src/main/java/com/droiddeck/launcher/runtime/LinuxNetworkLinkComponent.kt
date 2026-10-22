@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.LinkProperties
 import android.net.Network
@@ -12,13 +11,9 @@ import android.net.NetworkCapabilities
 import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import com.droiddeck.launcher.core.SessionPart
-import com.droiddeck.launcher.core.WifiDiscovery
 import java.io.File
 import java.io.IOException
 import java.net.Inet4Address
@@ -39,25 +34,7 @@ class LinuxNetworkLinkComponent(
     private var currentProperties: LinkProperties? = null
     private var currentCapabilities: NetworkCapabilities? = null
     private val wifiManager = appContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-    private val scanHandler = Handler(Looper.getMainLooper())
     private var wifiReceiver: BroadcastReceiver? = null
-    private var scanRequestStamp = 0L
-    private var lastScanRequest = -SCAN_INTERVAL_MS
-    @Volatile private var lastNamesAllowed = false
-    private val scanRequests = object : Runnable {
-        override fun run() {
-            if (canReadWifiNames() != lastNamesAllowed) {
-                synchronized(lock) { writeNetworkState(currentProperties, currentCapabilities) }
-                requestWifiScan()
-            }
-            val stamp = File(rootDir, "etc/droiddeck-wifi-scan-request").lastModified()
-            if (stamp != 0L && stamp != scanRequestStamp) {
-                scanRequestStamp = stamp
-                requestWifiScan()
-            }
-            if (wifiReceiver != null) scanHandler.postDelayed(this, 1000)
-        }
-    }
 
     fun publish() = synchronized(lock) {
         currentNetwork = connectivity.activeNetwork
@@ -106,19 +83,13 @@ class LinuxNetworkLinkComponent(
         }
         wifiReceiver = receiver
         appContext.registerReceiver(receiver, IntentFilter().apply {
-            addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)
             addAction(WifiManager.RSSI_CHANGED_ACTION)
             addAction(WifiManager.WIFI_STATE_CHANGED_ACTION)
             addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
-            addAction(LocationManager.MODE_CHANGED_ACTION)
         })
-        scanRequestStamp = File(rootDir, "etc/droiddeck-wifi-scan-request").lastModified()
-        scanHandler.post(scanRequests)
-        requestWifiScan()
     }
 
     override fun stop() {
-        scanHandler.removeCallbacks(scanRequests)
         wifiReceiver?.let { appContext.unregisterReceiver(it) }
         wifiReceiver = null
         val registered = synchronized(lock) { callback.also { callback = null } } ?: return
@@ -129,20 +100,6 @@ class LinuxNetworkLinkComponent(
         }
     }
 
-    private fun canReadWifiNames(): Boolean = WifiDiscovery.available(appContext)
-
-    @Suppress("DEPRECATION")
-    private fun requestWifiScan() {
-        val now = SystemClock.elapsedRealtime()
-        if (!canReadWifiNames() || wifiManager?.isWifiEnabled != true || now - lastScanRequest < SCAN_INTERVAL_MS) return
-        lastScanRequest = now
-        try {
-            Log.i(TAG, "Wi-Fi scan requested: accepted=${wifiManager.startScan()}")
-        } catch (e: SecurityException) {
-            Log.w(TAG, "Wi-Fi scan permission unavailable")
-        }
-        synchronized(lock) { writeNetworkState(currentProperties, currentCapabilities) }
-    }
 
     private fun write(properties: LinkProperties?, capabilities: NetworkCapabilities?) {
         val file = File(rootDir, LINK_FILE)
@@ -162,11 +119,6 @@ class LinuxNetworkLinkComponent(
 
     @Suppress("DEPRECATION")
     private fun writeNetworkState(properties: LinkProperties?, capabilities: NetworkCapabilities?) {
-        val namesAllowed = canReadWifiNames()
-        lastNamesAllowed = namesAllowed
-        val scans = if (namesAllowed && wifiManager?.isWifiEnabled == true) {
-            try { wifiManager.scanResults.orEmpty() } catch (e: SecurityException) { emptyList() }
-        } else emptyList()
         val transport = when {
             capabilities == null -> "none"
             capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
@@ -184,20 +136,9 @@ class LinuxNetworkLinkComponent(
             put("captivePortal", capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_CAPTIVE_PORTAL) == true)
             put("metered", capabilities?.let { !it.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) })
             put("wifiEnabled", wifiManager?.isWifiEnabled == true)
-            put("scanAllowed", namesAllowed)
-            put("lastScan", scans.maxOfOrNull { it.timestamp / 1000 } ?: -1L)
-            put("accessPoints", JSONArray().apply {
-                scans.filter { it.SSID.isNotEmpty() }.forEach {
-                    put(JSONObject().apply {
-                        put("ssid", it.SSID)
-                        put("bssid", it.BSSID)
-                        put("strength", WifiManager.calculateSignalLevel(it.level, 101))
-                        put("frequency", it.frequency)
-                        put("capabilities", it.capabilities)
-                        put("lastSeen", it.timestamp / 1_000_000)
-                    })
-                }
-            })
+            put("scanAllowed", false)
+            put("lastScan", -1L)
+            put("accessPoints", JSONArray())
             put("addresses", JSONArray().apply {
                 properties?.linkAddresses.orEmpty().forEach {
                     put(JSONObject().put("address", it.address.hostAddress?.substringBefore('%')).put("prefix", it.prefixLength))
@@ -223,12 +164,6 @@ class LinuxNetworkLinkComponent(
                     connectionInfo
                 }
                 if (info != null) {
-                    if (namesAllowed) {
-                        val namedInfo = connectionInfo ?: info
-                        namedInfo.ssid?.takeUnless { it == WifiManager.UNKNOWN_SSID || it.isEmpty() }
-                            ?.removeSurrounding("\"")?.let { put("ssid", it) }
-                        namedInfo.bssid?.takeUnless { it == "02:00:00:00:00:00" }?.let { put("bssid", it) }
-                    }
                     put("strength", WifiManager.calculateSignalLevel(info.rssi, 101))
                     put("frequency", info.frequency.coerceAtLeast(0))
                     put("bitrate", info.linkSpeed.coerceAtLeast(0) * 1000)
@@ -310,6 +245,5 @@ class LinuxNetworkLinkComponent(
         private const val DEFAULT_MTU = 1500
         private const val OFFLINE_NAME = "eth0"
         private const val OFFLINE_ADDRESS = "10.0.0.2 24"
-        private const val SCAN_INTERVAL_MS = 30_000L
     }
 }

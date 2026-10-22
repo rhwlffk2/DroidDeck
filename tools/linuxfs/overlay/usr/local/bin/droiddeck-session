@@ -242,25 +242,10 @@ if [ -z "${BL_INSIDE:-}" ]; then
   [ "$mode" = steam ] && args+=(--default-touch-mode 4)
   [ "${BL_HDR:-0}" = 1 ] && args+=(--hdr-enabled)
   [ -n "${BL_GAMESCOPE_ARGS:-}" ] && read -r -a _bl_extra <<<"$BL_GAMESCOPE_ARGS" && args+=("${_bl_extra[@]}")
-  if [ "$mode" = steam ] && [ "${BL_MANGOAPP:-1}" = 1 ] \
-     && [ "${BL_STEAM_UI:-}" != desktop ] && command -v mangoapp >/dev/null 2>&1; then
-    MANGOHUD_CONFIGFILE=/tmp/droiddeck-mangohud.conf
-    echo no_display > "$MANGOHUD_CONFIGFILE"
-    export MANGOHUD_CONFIGFILE STEAM_USE_MANGOAPP=1 STEAM_MANGOAPP_PRESETS_SUPPORTED=1 STEAM_MANGOAPP_HORIZONTAL_SUPPORTED=1
-    args+=(--mangoapp)
-    echo "== gamescope: mangoapp on ($(command -v mangoapp), config $MANGOHUD_CONFIGFILE)"
-  fi
   export BL_INSIDE=1
   if [ "$mode" = steam ]; then
-    if /usr/local/bin/droiddeck-pipewire start; then
-      eval "$(/usr/local/bin/droiddeck-pipewire env)"
-    else
-      echo "== pipewire: not running; Remote Play and game recording have no picture"
-    fi
     run_gamescope "${args[@]}" -- "$0" "$mode" "$@"
-    _bl_status=$?
-    /usr/local/bin/droiddeck-pipewire stop
-    exit $_bl_status
+    exit $?
   fi
   exec gamescope "${args[@]}" -- "$0" "$mode" "$@"
 fi

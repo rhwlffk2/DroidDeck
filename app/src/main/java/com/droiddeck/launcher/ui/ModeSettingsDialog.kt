@@ -83,7 +83,6 @@ class ModeSettings(
     val stretch16x9: Boolean? = null,
     val steamClientArch: String? = null,
     val steamRepairQueued: Boolean = false,
-    val mangoapp: Boolean = true,
     val steamController: String? = null,
     val unfoldedControls: Boolean? = null,
     val runSteamAtStartup: Boolean = false,
@@ -92,11 +91,6 @@ class ModeSettings(
     val bootMovieCustomName: String? = null,
     val bootMovieImporting: Boolean = false,
     val bootMovieProgress: Int = -1,
-    val wifiDiscovery: Boolean? = null,
-    val wifiDiscoveryPermission: Boolean = false,
-    val wifiDiscoveryLocation: Boolean = false,
-    val wifiDiscoveryAsked: Boolean = false,
-    val wifiDiscoveryBlocked: Boolean = false,
     val deckyInstalled: String? = null,
     val deckyLatestRelease: DeckyManager.Release? = null,
     val deckyBranch: Int = DeckyManager.BRANCH_STABLE,
@@ -134,7 +128,6 @@ class ModeSettingsActions(
     val onStretch16x9: (Boolean) -> Unit = {},
     val onSteamRepair: () -> Unit = {},
     val onSteamClientArch: (String) -> Unit = {},
-    val onMangoapp: (Boolean) -> Unit = {},
     val onSteamController: (String) -> Unit = {},
     val onUnfoldedControls: (Boolean) -> Unit = {},
     val onRunSteamAtStartup: (Boolean) -> Unit = {},
@@ -142,8 +135,6 @@ class ModeSettingsActions(
     val onBootMovieSound: (Boolean) -> Unit = {},
     val onImportBootMovie: () -> Unit = {},
     val onBootMovieChanged: () -> Unit = {},
-    val onWifiDiscovery: (Boolean) -> Unit = {},
-    val onWifiDiscoverySettings: () -> Unit = {},
     val onDeckyInstall: (DeckyManager.Release) -> Unit = {},
     val onDeckyCheck: () -> Unit = {},
     val onDeckyBranch: (Int) -> Unit = {},
@@ -202,7 +193,6 @@ class SheetExtras(
 fun ModeSheetRows(s: ModeSettings, a: ModeSettingsActions, tab: String, extras: SheetExtras = SheetExtras()) {
     val steam = s.mode == SessionService.MODE_STEAM
     val host = rememberMenuHost()
-    var explainWifiDiscovery by remember { mutableStateOf(false) }
     if (tab == SheetTab.DISPLAY) {
         val displaySize = com.droiddeck.launcher.session.SessionDisplay.resolveChoice(s.panelSize, s.resolution)
         SettingsGroup(stringResource(R.string.display_session)) {
@@ -467,11 +457,6 @@ fun ModeSheetRows(s: ModeSettings, a: ModeSettingsActions, tab: String, extras: 
             }
         }
         SettingsGroup(stringResource(R.string.mode_client)) {
-            ToggleRow(
-                host, "mangoapp", stringResource(R.string.mode_mangoapp),
-                stringResource(R.string.mode_mangoapp_hint),
-                s.mangoapp, onChange = a.onMangoapp,
-            )
             SettingsRow(
                 stringResource(R.string.mode_steam_repair),
                 stringResource(if (s.steamRepairQueued) R.string.mode_steam_repair_queued else R.string.mode_steam_repair_hint),
@@ -486,39 +471,7 @@ fun ModeSheetRows(s: ModeSettings, a: ModeSettingsActions, tab: String, extras: 
             )
         }
         if (s.bootMovie != null) BootMovieGroup(s, a, host)
-        if (s.wifiDiscovery != null) SettingsGroup(stringResource(R.string.mode_network)) {
-            val hint = when {
-                s.wifiDiscovery && !s.wifiDiscoveryLocation -> stringResource(R.string.mode_wifi_location_off)
-                !s.wifiDiscoveryPermission && s.wifiDiscoveryAsked -> stringResource(R.string.mode_wifi_permission_denied)
-                else -> stringResource(R.string.mode_wifi_discovery_hint)
-            }
-            SettingsRow(stringResource(R.string.mode_wifi_discovery), hint) {
-                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-                    if (s.wifiDiscoveryBlocked || (s.wifiDiscovery && !s.wifiDiscoveryLocation)) {
-                        SecondaryButton(stringResource(R.string.mode_wifi_open_settings), onClick = a.onWifiDiscoverySettings)
-                    }
-                    ToggleSwitch(s.wifiDiscovery, label = stringResource(R.string.mode_wifi_discovery)) { on ->
-                        host.open = null
-                        if (on) explainWifiDiscovery = true else a.onWifiDiscovery(false)
-                    }
-                }
-            }
-        }
     }
-    if (explainWifiDiscovery) AlertDialog(
-        onDismissRequest = { explainWifiDiscovery = false },
-        title = { Text(stringResource(R.string.mode_wifi_explain_title)) },
-        text = { Text(stringResource(R.string.mode_wifi_explain_text)) },
-        confirmButton = {
-            TextButton(onClick = { explainWifiDiscovery = false; a.onWifiDiscovery(true) }) {
-                Text(stringResource(if (s.wifiDiscoveryBlocked) R.string.mode_wifi_open_settings else R.string.mode_wifi_continue))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = { explainWifiDiscovery = false }) { Text(stringResource(R.string.common_cancel)) }
-        },
-    )
 }
 
 @Composable
