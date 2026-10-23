@@ -276,6 +276,18 @@ def without_pack(chosen_env, env):
     return result
 
 
+def without_tabtip(command, env):
+    """Proton's explorer starts tabtip.exe beside every game. It watches focus through UI Automation
+    to raise the Steam keyboard, which it only does under SteamDeck=1, yet its cross-process calls
+    into the game crash some of them (Slay the Spire 2: coreclr access violation on a mouse-mode
+    tap). Nothing here sets SteamDeck, so it is switched off for every Proton launch; explorer
+    just logs that it could not start it."""
+    if len(command) < 2 or command[1] not in ("waitforexitandrun", "run"):
+        return env
+    overrides = env.get("WINEDLLOVERRIDES", "")
+    return dict(env, WINEDLLOVERRIDES=overrides + ";tabtip.exe=d" if overrides else "tabtip.exe=d")
+
+
 SSBS_LIB = "/usr/local/lib/libssbs.so"
 
 
@@ -468,6 +480,7 @@ def main():
         command = offline_without_anticheat(command, env)
     if mic_enabled == "0":
         env["BANNER_AUDIO_DIRECT_MIC"] = "0"
+    env = without_tabtip(command, env)
     env = force_ssbs(command, env)
     sync = load_sync()
     launch, launch_env = select_sync(command, env, sync)

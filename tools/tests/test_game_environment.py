@@ -1167,6 +1167,16 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class WithoutTabtipTest(unittest.TestCase):
+    def test_tabtip_is_switched_off_for_proton_launches_only(self):
+        off = MODULE["without_tabtip"]
+        self.assertEqual(off(["/proton", "waitforexitandrun", "/game.exe"], {})["WINEDLLOVERRIDES"], "tabtip.exe=d")
+        self.assertEqual(off(["/proton", "run", "/setup.exe"], {"WINEDLLOVERRIDES": "dxgi=n"})["WINEDLLOVERRIDES"],
+                         "dxgi=n;tabtip.exe=d")
+        self.assertEqual(off(["/game.sh"], {"WINEDLLOVERRIDES": "dxgi=n"}), {"WINEDLLOVERRIDES": "dxgi=n"})
+        self.assertEqual(off(["/proton", "getcompatpath", "x"], {}), {})
+
+
 class ForceSsbsTest(unittest.TestCase):
     def test_libssbs_is_preloaded_only_when_asked_and_only_into_arm64_proton(self):
         with tempfile.TemporaryDirectory() as tmp:
