@@ -533,7 +533,20 @@ private fun FrontEndScreenBody(s: FrontEndState, a: FrontEndActions, page: (@Com
     }
     val hasBackTarget = (s.pageKey != null && page != null) ||
         (s.pageKey == null && Hops.origin?.page == selected)
+    var lastTouchBack by remember { mutableStateOf(0L) }
     BackHandler(enabled = !processSettingsPageVisible && !hasBackTarget) {
+        // Touch users leave on a second back within two seconds, like other apps; as the home app or on a pad, back only returns focus to the rail.
+        if (!s.isHomeApp && inputModeManager.inputMode == InputMode.Touch) {
+            val now = android.os.SystemClock.uptimeMillis()
+            if (now - lastTouchBack < 2_000) {
+                lastTouchBack = 0L
+                (ctx as? android.app.Activity)?.moveTaskToBack(true)
+            } else {
+                lastTouchBack = now
+                android.widget.Toast.makeText(ctx, R.string.front_back_again_to_exit, android.widget.Toast.LENGTH_SHORT).show()
+            }
+            return@BackHandler
+        }
         if (inputModeManager.inputMode != InputMode.Keyboard) inputModeManager.requestInputMode(InputMode.Keyboard)
         runCatching { frontFocus.railFor(railSelection).requestFocus() }
     }
